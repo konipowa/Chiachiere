@@ -289,7 +289,11 @@ function subscribe() {
 }
 function refreshPollsSoon() {
   clearTimeout(S.pollTimer);
-  S.pollTimer = setTimeout(() => loadPolls(document.getElementById('polls')), 400);
+  S.pollTimer = setTimeout(afterPollChange, 400);
+}
+function afterPollChange() {
+  loadPolls(document.getElementById('polls'));
+  const f = document.getElementById('feed'); if (f) loadFeed(f);
 }
 function onSocialChange() {
   loadPending();
@@ -318,56 +322,147 @@ function refreshFeedSoon() {
   S.feedTimer = setTimeout(() => { const f = document.getElementById('feed'); if (f) loadFeed(f); }, 400);
 }
 
-/* ============ OGGI ============ */
+/* ============ OGGI: ARGOMENTO DEL GIORNO ============ */
 async function tabOggi(root) {
-  const composer = h('div', { id: 'composer' });
-  const feed = h('div', { id: 'feed' }, h('p', { class: 'muted center' }, 'Carico i post…'));
-  root.append(composer, feed);
-  renderComposer(composer);
-  loadFeed(feed);
+  root.append(h('div', { id: 'feed' }, h('p', { class: 'muted center' }, 'Carico…')));
+  loadFeed(document.getElementById('feed'));
 }
 
-async function renderComposer(box) {
-  const { data } = await sb.from('posts').select('id').eq('circle_id', S.circleId).eq('user_id', S.me.id).eq('day', todayRome()).maybeSingle();
-  if (data) {
-    box.replaceChildren(h('div', { class: 'card center' }, h('div', { style: 'font-size:32px' }, '✅'),
-      h('b', {}, 'Hai già raccontato la tua giornata.'), h('p', { class: 'muted small', style: 'margin:4px 0 0' }, 'Domani puoi scrivere di nuovo. Intanto guarda cosa hanno scritto gli altri!')));
-    return;
+async function loadFeed(feed) {
+  if (!feed) return;
+  // non ridisegnare mentre qualcuno sta scrivendo: riprova tra poco
+  const ae = document.activeElement;
+  if (ae && feed.contains(ae) && /INPUT|TEXTAREA/.test(ae.tagName) && ae.value) {
+    clearTimeout(S.feedTimer); S.feedTimer = setTimeout(() => loadFeed(feed), 2500); return;
   }
+  const { data, error } = await sb.from('posts')
+    .select('id,user_id,body,image_path,day,created_at,poll_id,reactions(user_id,emoji),comments(count),polls(*,poll_votes(user_id,option))')
+    .eq('circle_id', S.circleId).order('day', { ascending: false }).limit(30);
+  if (error) { feed.replaceChildren(h('p', { class: 'error center' }, errMsg(error))); return; }
+  const today = todayRome();
+  const top = data.find((p) => p.day === today);
+  const past = data.filter((p) => p.day !== today);
+  const open = new Set([...feed.querySelectorAll('.comments[data-open]')].map((x) => x.dataset.post));
+  feed.replaceChildren(...[
+    top ? topicCard(top) : composerCard(),
+    past.length ? h('div', { class: 'day-sep', style: 'text-transform:none' }, '🗓️ Gli argomenti dei giorni scorsi') : null,
+    ...past.map((p) => pastCard(p, open.has(p.id)))].filter(Boolean));
+}
+
+function composerCard() {
   let photo = null;
-  const ta = h('textarea', { class: 'input', placeholder: `Com'è andata oggi, ${S.me.username}?`, maxlength: 1000 });
+  const ta = h('textarea', { class: 'input', placeholder: 'es. Stasera calcetto? Chi c\'è? ⚽', maxlength: 1000 });
   const preview = h('div');
   const file = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async () => {
     const f = file.files[0]; if (!f) return;
     try { photo = await compressImage(f); } catch { return toast('Non riesco a leggere la foto.'); }
-    const url = URL.createObjectURL(photo);
-    preview.replaceChildren(h('div', { class: 'composer-photo' }, h('img', { src: url, class: 'post-img' }),
+    preview.replaceChildren(h('div', { class: 'composer-photo' }, h('img', { src: URL.createObjectURL(photo), class: 'post-img' }),
       h('button', { class: 'btn small white', type: 'button', onclick: () => { photo = null; preview.replaceChildren(); file.value = ''; } }, '✕ Togli')));
   } });
+  const opts = h('div', { class: 'stack', style: 'display:none;margin-top:10px' });
+  const addOpt = () => { if (opts.querySelectorAll('input').length < 6) opts.insertBefore(h('input', { class: 'input', maxlength: 60, placeholder: `Risposta ${opts.querySelectorAll('input').length + 1}` }), opts.lastChild); };
+  opts.append(h('button', { class: 'linkbtn', type: 'button', onclick: addOpt }, '➕ Aggiungi risposta'));
+  const pollBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => {
+    const show = opts.style.display === 'none';
+    opts.style.display = show ? '' : 'none';
+    pollBtn.textContent = show ? '📊 Togli sondaggio' : '📊 Sondaggio';
+    if (show && !opts.querySelector('input')) { addOpt(); addOpt(); opts.querySelector('input').value = 'Ci sono! 🙋'; opts.querySelectorAll('input')[1].value = 'Stavolta no 😴'; }
+  } }, '📊 Sondaggio');
   const send = h('button', { class: 'btn', onclick: async () => {
     const body = ta.value.trim();
-    if (!body && !photo) return toast('Scrivi qualcosa o aggiungi una foto 🙂');
+    if (!body && !photo) return toast('Scrivi l\'argomento di oggi 🙂');
+    const options = opts.style.display === 'none' ? [] : [...opts.querySelectorAll('input')].map((x) => x.value.trim()).filter(Boolean);
+    if (opts.style.display !== 'none' && options.length < 2) return toast('Il sondaggio ha bisogno di almeno 2 risposte');
     send.disabled = true; send.textContent = 'Pubblico…';
+    let pollId = null, image_path = null;
     try {
-      let image_path = null;
       if (photo) {
         image_path = `${S.me.id}/${Date.now()}.jpg`;
         const up = await sb.storage.from('foto').upload(image_path, photo, { contentType: 'image/jpeg' });
         if (up.error) throw up.error;
       }
-      const { error } = await sb.from('posts').insert({ circle_id: S.circleId, user_id: S.me.id, body: body || null, image_path });
-      if (error) { if (error.code === '23505') throw new Error('Hai già scritto oggi!'); throw error; }
-      toast('Pubblicato! 🎉');
-      renderComposer(box); loadFeed(document.getElementById('feed'));
-    } catch (e) { toast(errMsg(e)); send.disabled = false; send.textContent = 'Pubblica'; }
-  } }, 'Pubblica');
-  box.replaceChildren(h('div', { class: 'card' },
-    h('h3', {}, '☀️ La tua giornata'),
-    h('p', { class: 'muted small' }, 'Un post al giorno, senza filtri. Com\'è davvero.'),
-    ta, preview,
-    h('div', { class: 'row', style: 'margin-top:10px' },
-      h('button', { class: 'btn ghost', type: 'button', onclick: () => file.click() }, '📷 Foto'), file,
-      h('div', { class: 'spacer' }), send)));
+      if (options.length) {
+        const { data: pl, error: pe } = await sb.from('polls').insert({ circle_id: S.circleId, user_id: S.me.id, question: (body || 'Sondaggio di oggi').slice(0, 200), options }).select('id').single();
+        if (pe) throw pe; pollId = pl.id;
+      }
+      const { error } = await sb.from('posts').insert({ circle_id: S.circleId, user_id: S.me.id, body: body || null, image_path, poll_id: pollId });
+      if (error) {
+        if (pollId) await sb.from('polls').delete().eq('id', pollId);
+        if (image_path) sb.storage.from('foto').remove([image_path]);
+        if (error.code === '23505') { toast('Qualcuno ti ha preceduto! Rispondi al suo argomento 👇', 3500); return loadFeed(document.getElementById('feed')); }
+        throw error;
+      }
+      toast('Argomento lanciato! 🔥');
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🔥 Argomento di oggi: «${(body || 'foto').slice(0, 120)}» — dite la vostra in Oggi!` });
+      ta.value = ''; loadFeed(document.getElementById('feed'));
+    } catch (e) { toast(errMsg(e)); send.disabled = false; send.textContent = 'Lancia'; }
+  } }, '🔥 Lancia');
+  return h('div', { class: 'card topic-new' },
+    h('h2', {}, '🔥 L\'argomento di oggi'),
+    h('p', { class: 'muted small' }, 'Oggi nessuno ha ancora scritto. Il primo decide di cosa si parla nella cerchia, e tutti gli altri rispondono sotto.'),
+    ta, preview, opts,
+    h('div', { class: 'row wrap', style: 'margin-top:10px' },
+      h('button', { class: 'btn ghost', type: 'button', onclick: () => file.click() }, '📷'), file, pollBtn,
+      h('div', { class: 'spacer' }), send));
+}
+
+function postBody(p) {
+  const imgUrl = p.image_path ? sb.storage.from('foto').getPublicUrl(p.image_path).data.publicUrl : null;
+  return [
+    p.body ? h('div', { class: 'post-body' }, p.body) : null,
+    imgUrl ? h('img', { class: 'post-img', src: imgUrl, loading: 'lazy', alt: '' }) : null,
+    p.polls ? h('div', { class: 'topic-poll' }, pollCard(p.polls)) : null,
+  ];
+}
+function reactBar(p, extra) {
+  const myReact = p.reactions.find((r) => r.user_id === S.me.id)?.emoji;
+  const counts = {}; p.reactions.forEach((r) => (counts[r.emoji] = (counts[r.emoji] || 0) + 1));
+  return h('div', { class: 'reacts' },
+    REACTIONS.map((e) => h('button', { class: 'react' + (myReact === e ? ' on' : ''), onclick: () => react(p.id, e, myReact) },
+      e, counts[e] ? h('span', { class: 'n' }, counts[e]) : null)), extra);
+}
+function deleteBtn(p) {
+  return p.user_id === S.me.id ? h('button', { class: 'btn plain small', 'aria-label': 'Elimina', onclick: async () => {
+    if (!confirm('Vuoi eliminare questo argomento? Spariscono anche le risposte.')) return;
+    const { error } = await sb.from('posts').delete().eq('id', p.id);
+    if (error) return toast(errMsg(error));
+    if (p.poll_id) sb.from('polls').delete().eq('id', p.poll_id);
+    if (p.image_path) sb.storage.from('foto').remove([p.image_path]);
+    toast('Argomento eliminato'); loadFeed(document.getElementById('feed'));
+  } }, '🗑️') : null;
+}
+
+function topicCard(p) {
+  const who = person(p.user_id);
+  const n = p.comments?.[0]?.count || 0;
+  const replies = h('div', { class: 'comments', 'data-post': p.id, 'data-open': '1' });
+  loadComments(p.id, replies, 'Dì la tua…');
+  return h('div', { class: 'card topic' },
+    h('div', { class: 'topic-head' }, h('span', {}, '🔥 Argomento di oggi'), h('div', { class: 'spacer' }), deleteBtn(p)),
+    h('div', { class: 'post-head' }, avatarEl(who),
+      h('div', {}, h('div', { class: 'name' }, who.username), h('div', { class: 'muted small' }, `l'ha lanciato alle ${timeOf(p.created_at)}`))),
+    ...postBody(p),
+    reactBar(p),
+    h('h3', { style: 'margin:16px 0 0' }, `💬 Il dibattito${n ? ` (${n})` : ''}`),
+    replies);
+}
+
+function pastCard(p, commentsOpen) {
+  const who = person(p.user_id);
+  const n = p.comments?.[0]?.count || 0;
+  const cbox = h('div', { class: 'comments', 'data-post': p.id, style: commentsOpen ? '' : 'display:none' });
+  if (commentsOpen) { cbox.dataset.open = '1'; loadComments(p.id, cbox, 'Rispondi…'); }
+  return h('div', { class: 'card' },
+    h('div', { class: 'post-head' }, avatarEl(who),
+      h('div', {}, h('div', { class: 'name' }, who.username), h('div', { class: 'muted small', style: 'text-transform:capitalize' }, dayLabel(p.day))),
+      h('div', { class: 'spacer' }), deleteBtn(p)),
+    ...postBody(p),
+    reactBar(p, h('button', { class: 'react', onclick: () => {
+      const show = cbox.style.display === 'none';
+      cbox.style.display = show ? '' : 'none';
+      if (show) { cbox.dataset.open = '1'; loadComments(p.id, cbox, 'Rispondi…'); } else delete cbox.dataset.open;
+    } }, '💬', h('span', { class: 'n' }, n ? `${n} risposte` : 'Rispondi'))),
+    cbox);
 }
 
 function compressImage(f) {
@@ -386,59 +481,6 @@ function compressImage(f) {
   });
 }
 
-async function loadFeed(feed) {
-  const { data, error } = await sb.from('posts')
-    .select('id,user_id,body,image_path,day,created_at,reactions(user_id,emoji),comments(count)')
-    .eq('circle_id', S.circleId).order('created_at', { ascending: false }).limit(60);
-  if (error) { feed.replaceChildren(h('p', { class: 'error center' }, errMsg(error))); return; }
-  if (!data.length) {
-    feed.replaceChildren(h('div', { class: 'empty' }, h('div', { class: 'big' }, '🌱'),
-      h('p', {}, 'Ancora nessun post. Sii il primo a raccontare la tua giornata!')));
-    return;
-  }
-  const open = new Set([...feed.querySelectorAll('.comments[data-open]')].map((x) => x.dataset.post));
-  const out = []; let lastDay = null;
-  for (const p of data) {
-    if (p.day !== lastDay) { out.push(h('div', { class: 'day-sep' }, dayLabel(p.day))); lastDay = p.day; }
-    out.push(postCard(p, open.has(p.id)));
-  }
-  feed.replaceChildren(...out);
-}
-
-function postCard(p, commentsOpen) {
-  const who = person(p.user_id);
-  const mine = p.user_id === S.me.id;
-  const myReact = p.reactions.find((r) => r.user_id === S.me.id)?.emoji;
-  const counts = {}; p.reactions.forEach((r) => (counts[r.emoji] = (counts[r.emoji] || 0) + 1));
-  const nComments = p.comments?.[0]?.count || 0;
-  const cbox = h('div', { class: 'comments', 'data-post': p.id, style: commentsOpen ? '' : 'display:none' });
-  if (commentsOpen) { cbox.dataset.open = '1'; loadComments(p.id, cbox); }
-  const imgUrl = p.image_path ? sb.storage.from('foto').getPublicUrl(p.image_path).data.publicUrl : null;
-  return h('div', { class: 'card' },
-    h('div', { class: 'post-head' }, avatarEl(who),
-      h('div', {}, h('div', { class: 'name' }, who.username), h('div', { class: 'muted small' }, timeOf(p.created_at))),
-      h('div', { class: 'spacer' }),
-      mine ? h('button', { class: 'btn plain small', onclick: async () => {
-        if (!confirm('Vuoi eliminare il tuo post di oggi?')) return;
-        const { error } = await sb.from('posts').delete().eq('id', p.id);
-        if (error) return toast(errMsg(error));
-        if (p.image_path) sb.storage.from('foto').remove([p.image_path]);
-        toast('Post eliminato'); const c = document.getElementById('composer'); if (c) renderComposer(c);
-        loadFeed(document.getElementById('feed'));
-      } }, '🗑️') : null),
-    p.body ? h('div', { class: 'post-body' }, p.body) : null,
-    imgUrl ? h('img', { class: 'post-img', src: imgUrl, loading: 'lazy', alt: '' }) : null,
-    h('div', { class: 'reacts' },
-      REACTIONS.map((e) => h('button', { class: 'react' + (myReact === e ? ' on' : ''), onclick: () => react(p.id, e, myReact) },
-        e, counts[e] ? h('span', { class: 'n' }, counts[e]) : null)),
-      h('button', { class: 'react', onclick: () => {
-        const show = cbox.style.display === 'none';
-        cbox.style.display = show ? '' : 'none';
-        if (show) { cbox.dataset.open = '1'; loadComments(p.id, cbox); } else delete cbox.dataset.open;
-      } }, '💬', h('span', { class: 'n' }, nComments || ''))),
-    cbox);
-}
-
 async function react(postId, emoji, current) {
   const q = current === emoji
     ? sb.from('reactions').delete().eq('post_id', postId).eq('user_id', S.me.id)
@@ -448,18 +490,19 @@ async function react(postId, emoji, current) {
   loadFeed(document.getElementById('feed'));
 }
 
-async function loadComments(postId, box) {
+async function loadComments(postId, box, placeholder = 'Scrivi…') {
   const { data } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at');
-  const inp = h('input', { class: 'input', placeholder: 'Scrivi un commento…', maxlength: 500, style: 'padding:10px 12px' });
-  box.replaceChildren(
+  const inp = h('input', { class: 'input', placeholder, maxlength: 500, style: 'padding:10px 12px' });
+  box.replaceChildren(...[
     ...(data || []).map((c) => { const w = person(c.user_id); return h('div', { class: 'comment' }, avatarEl(w, 'sm'),
-      h('div', { class: 'bubble' }, h('b', {}, w.username), c.body)); }),
+      h('div', { class: 'bubble' }, h('b', {}, w.username, h('span', { class: 'muted', style: 'font-weight:400;margin-left:6px' }, timeOf(c.created_at))), c.body)); }),
+    (data || []).length ? null : h('p', { class: 'muted small', style: 'margin:4px 0 10px' }, 'Ancora nessuna risposta. Inizia tu!'),
     h('form', { class: 'row', onsubmit: async (e) => {
       e.preventDefault(); const body = inp.value.trim(); if (!body) return;
-      inp.value = '';
+      inp.value = ''; inp.blur();
       const { error } = await sb.from('comments').insert({ post_id: postId, user_id: S.me.id, body });
-      if (error) toast(errMsg(error)); else loadComments(postId, box);
-    } }, inp, h('button', { class: 'btn small' }, 'Invia')));
+      if (error) { toast(errMsg(error)); inp.value = body; } else loadComments(postId, box, placeholder);
+    } }, inp, h('button', { class: 'btn small' }, 'Invia'))].filter(Boolean));
 }
 
 /* ============ CHAT ============ */
@@ -570,11 +613,11 @@ function pollCard(p) {
       return h('button', { class: 'poll-opt' + (mine === i ? ' on' : ''), disabled: p.closed, onclick: async () => {
         const { error } = await sb.from('poll_votes').upsert({ poll_id: p.id, user_id: S.me.id, option: i });
         if (error) return toast(errMsg(error));
-        loadPolls(document.getElementById('polls'));
+        afterPollChange();
       } }, h('span', { class: 'bar', style: `width:${pct}%` }), h('span', { class: 'lbl' }, o), h('span', { class: 'cnt' }, voters, ` ${pct}%`));
     }),
     p.user_id === S.me.id && !p.closed ? h('button', { class: 'linkbtn small', onclick: async () => {
-      await sb.from('polls').update({ closed: true }).eq('id', p.id); loadPolls(document.getElementById('polls'));
+      await sb.from('polls').update({ closed: true }).eq('id', p.id); afterPollChange();
     } }, 'Chiudi sondaggio') : null);
 }
 function newPoll() {

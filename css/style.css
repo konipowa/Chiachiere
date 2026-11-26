@@ -212,3 +212,13 @@ textarea.input { resize: none; min-height: 90px; }
 /* Barra installazione */
 .install-bar { display: flex; align-items: center; gap: 8px; background: var(--ink); color: #fff; border-radius: 14px; padding: 6px 6px 6px 14px; margin-bottom: 10px; font-weight: 700; }
 .install-bar .btn.plain { color: #fff; }
+
+/* Argomento del giorno */
+.card.topic { border: 2px solid var(--brand); padding-top: 0; overflow: hidden; }
+.topic-head { display: flex; align-items: center; margin: 0 -16px 14px; padding: 10px 16px; background: linear-gradient(135deg, #ffb199 0%, #ff7a59 100%); color: #fff; font-weight: 700; font-size: 1.05rem; }
+.topic-head .btn.plain { color: #fff; }
+.card.topic .post-body { font-size: 1.25rem; font-weight: 700; line-height: 1.35; }
+.topic-poll { margin-top: 12px; background: #fffaf6; border-radius: 14px; padding: 10px 12px 4px; }
+.topic-poll .poll { border-top: none; padding-top: 0; }
+.card.topic-new { border: 2px dashed var(--brand); }
+.topic-poll .poll > .row { display: none; }
