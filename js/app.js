@@ -423,7 +423,7 @@ function reactBar(p, extra) {
 }
 function deleteBtn(p) {
   return p.user_id === S.me.id ? h('button', { class: 'btn plain small', 'aria-label': 'Elimina', onclick: async () => {
-    if (!confirm('Vuoi eliminare questo argomento? Spariscono anche le risposte.')) return;
+    if (!(await askConfirm('🗑️ Sei sicuro di volerlo cancellare?', 'Spariranno anche il sondaggio e tutte le risposte del dibattito.', 'Sì, cancella'))) return;
     const { error } = await sb.from('posts').delete().eq('id', p.id);
     if (error) return toast(errMsg(error));
     if (p.poll_id) sb.from('polls').delete().eq('id', p.poll_id);
@@ -965,11 +965,22 @@ function tabProfilo(root) {
     h('div', { class: 'card stack' },
       h('button', { class: 'btn ghost block', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Altre cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '➕ Crea o entra in un\'altra cerchia'),
       !isStandalone() ? h('button', { class: 'btn ghost block', onclick: () => showInstall(true) }, '📲 Metti l\'app nella schermata Home') : null,
-      h('button', { class: 'btn plain block', onclick: () => { if (confirm('Vuoi uscire? Per rientrare ti serviranno nome e password.')) sb.auth.signOut(); } }, 'Esci')),
+      h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) sb.auth.signOut(); } }, 'Esci')),
   );
 }
 
 /* ============ FOGLIO / INSTALLAZIONE ============ */
+function askConfirm(title, text, okLabel = 'Sì') {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; resolve(v); closeSheet(); };
+    openSheet(h('div', { class: 'center' },
+      h('h2', {}, title), text ? h('p', { class: 'muted' }, text) : null,
+      h('button', { class: 'btn block', style: 'background:#d9534f;margin-top:6px', onclick: () => finish(true) }, okLabel),
+      h('button', { class: 'btn plain block', style: 'margin-top:6px', onclick: () => finish(false) }, 'Annulla')),
+    () => { if (!done) { done = true; resolve(false); } });
+  });
+}
 let sheetClose = null;
 function openSheet(content, onClose) {
   closeSheet();
