@@ -571,6 +571,7 @@ async function tabChat(root) {
     if (up.error) return toast(errMsg(up.error));
     const { data, error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, audio_path: path, audio_secs: secs }).select().single();
     if (error) { sb.storage.from('audio').remove([path]); return toast(errMsg(error)); }
+    await voiceToPhone(path, blob);
     appendMsg(data, true);
   }
 
@@ -585,27 +586,64 @@ async function tabChat(root) {
   cleanOldAudio();
 }
 
+/* --- vocali salvati sul telefono (Cache Storage) --- */
+const VOICE_CACHE = 'vocali-chiacchiere';
+const voiceKey = (path) => new Request(`${location.origin}/__vocali__/${path}`);
+async function voiceFromPhone(path) {
+  try { const c = await caches.open(VOICE_CACHE); const r = await c.match(voiceKey(path)); return r ? await r.blob() : null; } catch { return null; }
+}
+async function voiceToPhone(path, blob) {
+  try { const c = await caches.open(VOICE_CACHE); await c.put(voiceKey(path), new Response(blob, { headers: { 'Content-Type': blob.type || 'audio/mp4' } })); } catch {}
+}
+async function getVoice(path) {
+  const local = await voiceFromPhone(path);
+  if (local) return local;
+  const { data, error } = await sb.storage.from('audio').download(path);
+  if (error) return null;
+  voiceToPhone(path, data);
+  return data;
+}
+// scarica in sottofondo i vocali che non sono ancora sul telefono
+const voiceQueue = [];
+let voiceBusy = false;
+function queueVoice(m) {
+  if (Date.now() - Date.parse(m.created_at) > AUDIO_DAYS * 864e5) return;
+  voiceQueue.push(m.audio_path);
+  if (!voiceBusy) drainVoices();
+}
+async function drainVoices() {
+  voiceBusy = true;
+  while (voiceQueue.length) {
+    const p = voiceQueue.shift();
+    if (!(await voiceFromPhone(p))) await getVoice(p);
+  }
+  voiceBusy = false;
+}
+if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+
 function audioBubble(m) {
   const old = Date.now() - Date.parse(m.created_at) > AUDIO_DAYS * 864e5;
   const btn = h('button', { class: 'play', 'aria-label': 'Ascolta' }, '▶');
   const fill = h('span', { class: 'fill' });
   const dur = h('span', { class: 'dur' }, fmtSecs(m.audio_secs || 0));
   const wrap = h('div', { class: 'bubble voice' }, btn, h('span', { class: 'track' }, fill), dur);
-  if (old) { btn.disabled = true; dur.textContent = 'scaduto'; return wrap; }
+  if (old) {
+    btn.disabled = true; dur.textContent = '…';
+    voiceFromPhone(m.audio_path).then((b) => { if (b) { btn.disabled = false; dur.textContent = fmtSecs(m.audio_secs || 0); } else dur.textContent = 'scaduto'; });
+  } else queueVoice(m);
   let audio = null;
   btn.onclick = async () => {
     if (audio && !audio.paused) { audio.pause(); return; }
     if (!audio) {
       btn.textContent = '…';
-      const { data, error } = await sb.storage.from('audio').download(m.audio_path);
-      if (error) { btn.textContent = '▶'; return toast('Vocale non disponibile'); }
-      audio = new Audio(URL.createObjectURL(data));
+      const blob = await getVoice(m.audio_path);
+      if (!blob) { btn.textContent = '▶'; return toast('Vocale non disponibile'); }
+      audio = new Audio(URL.createObjectURL(blob));
       audio.ontimeupdate = () => { const d = audio.duration && isFinite(audio.duration) ? audio.duration : (m.audio_secs || 1); fill.style.width = Math.min(100, (audio.currentTime / d) * 100) + '%'; dur.textContent = fmtSecs(audio.currentTime); };
       audio.onpause = () => (btn.textContent = '▶');
       audio.onplay = () => (btn.textContent = '❚❚');
       audio.onended = () => { fill.style.width = '0%'; dur.textContent = fmtSecs(m.audio_secs || 0); };
     }
-    document.querySelectorAll('audio').forEach((a) => a.pause());
     S.playing?.pause(); S.playing = audio;
     audio.play().catch(() => toast('Non riesco a riprodurlo su questo telefono'));
   };
