@@ -277,6 +277,9 @@ function subscribe() {
       if (S.tab === 'chat') appendMsg(p.new, true);
       else if (p.new.user_id !== S.me.id) { S.unread++; updateBadge(); }
     })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (p) => {
+      document.querySelector(`#chat [data-id="${p.old?.id}"]`)?.remove();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `circle_id=eq.${cid}` }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions' }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refreshFeedSoon)
@@ -494,8 +497,16 @@ async function loadComments(postId, box, placeholder = 'Scrivi…') {
   const { data } = await sb.from('comments').select('*').eq('post_id', postId).order('created_at');
   const inp = h('input', { class: 'input', placeholder, maxlength: 500, style: 'padding:10px 12px' });
   box.replaceChildren(...[
-    ...(data || []).map((c) => { const w = person(c.user_id); return h('div', { class: 'comment' }, avatarEl(w, 'sm'),
-      h('div', { class: 'bubble' }, h('b', {}, w.username, h('span', { class: 'muted', style: 'font-weight:400;margin-left:6px' }, timeOf(c.created_at))), c.body)); }),
+    ...(data || []).map((c) => {
+      const w = person(c.user_id);
+      const bubble = h('div', { class: 'bubble' }, h('b', {}, w.username, h('span', { class: 'muted', style: 'font-weight:400;margin-left:6px' }, timeOf(c.created_at))), c.body);
+      onLongPress(bubble, () => messageMenu({ text: c.body, preview: c.body, mine: c.user_id === S.me.id, onDelete: async () => {
+        const { error } = await sb.from('comments').delete().eq('id', c.id);
+        if (error) return toast(errMsg(error));
+        toast('Risposta eliminata'); loadComments(postId, box, placeholder);
+      } }));
+      return h('div', { class: 'comment' }, avatarEl(w, 'sm'), bubble);
+    }),
     (data || []).length ? null : h('p', { class: 'muted small', style: 'margin:4px 0 10px' }, 'Ancora nessuna risposta. Inizia tu!'),
     h('form', { class: 'row', onsubmit: async (e) => {
       e.preventDefault(); const body = inp.value.trim(); if (!body) return;
@@ -666,11 +677,20 @@ function appendMsg(m, scroll) {
   if (list.querySelector(`[data-id="${m.id}"]`)) return;
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
-  list.append(h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
+  const bubble = m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
+  const row = h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
     me ? null : avatarEl(w, 'sm'),
-    h('div', {}, me ? null : h('div', { class: 'who' }, w.username),
-      m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body),
-      h('div', { class: 'time' }, timeOf(m.created_at)))));
+    h('div', {}, me ? null : h('div', { class: 'who' }, w.username), bubble, h('div', { class: 'time' }, timeOf(m.created_at))));
+  onLongPress(bubble, () => messageMenu({
+    text: m.body, mine: me, audioPath: m.audio_path, preview: m.audio_path ? `🎤 Vocale (${fmtSecs(m.audio_secs || 0)})` : m.body,
+    onDelete: async () => {
+      const { error } = await sb.from('messages').delete().eq('id', m.id);
+      if (error) return toast(errMsg(error));
+      if (m.audio_path) sb.storage.from('audio').remove([m.audio_path]);
+      row.remove(); toast('Messaggio eliminato');
+    },
+  }));
+  list.append(row);
   if (scroll) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
@@ -1103,6 +1123,50 @@ function tabProfilo(root) {
       !isStandalone() ? h('button', { class: 'btn ghost block', onclick: () => showInstall(true) }, '📲 Metti l\'app nella schermata Home') : null,
       h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) sb.auth.signOut(); } }, 'Esci')),
   );
+}
+
+/* ============ PRESSIONE LUNGA SUI MESSAGGI ============ */
+function onLongPress(el, fn) {
+  let timer = null, x = 0, y = 0;
+  const cancel = () => { clearTimeout(timer); timer = null; el.classList.remove('pressing'); };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return; // il tasto ▶ dei vocali resta normale
+    x = e.clientX; y = e.clientY; el.classList.add('pressing');
+    timer = setTimeout(() => { cancel(); navigator.vibrate?.(15); fn(); }, 450);
+  });
+  el.addEventListener('pointermove', (e) => { if (timer && Math.hypot(e.clientX - x, e.clientY - y) > 10) cancel(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => el.addEventListener(ev, cancel));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+  el.classList.add('pressable');
+}
+function messageMenu({ text, preview, mine, onDelete, audioPath }) {
+  const canShare = !!navigator.share;
+  const share = canShare && (text || audioPath) ? h('button', { class: 'menu-btn', onclick: async () => {
+    closeSheet();
+    try {
+      if (audioPath) {
+        const blob = await getVoice(audioPath);
+        if (!blob) return toast('Vocale non disponibile');
+        const file = new File([blob], `vocale-chiacchiere.${blob.type.includes('webm') ? 'webm' : 'm4a'}`, { type: blob.type || 'audio/mp4' });
+        if (!navigator.canShare?.({ files: [file] })) return toast('Questo telefono non permette di condividere i vocali');
+        await navigator.share({ files: [file] });
+      } else await navigator.share({ text });
+    } catch (e) { if (e?.name !== 'AbortError') toast('Condivisione non riuscita'); }
+  } }, '📤', h('span', {}, 'Condividi')) : null;
+  const copy = text ? h('button', { class: 'menu-btn', onclick: async () => {
+    closeSheet();
+    try { await navigator.clipboard.writeText(text); toast('Copiato 📋'); }
+    catch { toast('Non riesco a copiare su questo telefono'); }
+  } }, '📋', h('span', {}, 'Copia')) : null;
+  const del = mine ? h('button', { class: 'menu-btn danger', onclick: async () => {
+    closeSheet();
+    if (await askConfirm('🗑️ Eliminare il messaggio?', 'Sparisce per tutti. Non si può annullare.', 'Sì, elimina')) onDelete();
+  } }, '🗑️', h('span', {}, 'Elimina')) : null;
+  if (!copy && !del && !share) return;
+  openSheet(h('div', {},
+    h('div', { class: 'menu-preview' }, preview || ''),
+    h('div', { class: 'menu-list' }, copy, share, del),
+    h('button', { class: 'btn plain block', style: 'margin-top:6px', onclick: closeSheet }, 'Annulla')));
 }
 
 /* ============ FOGLIO / INSTALLAZIONE ============ */
