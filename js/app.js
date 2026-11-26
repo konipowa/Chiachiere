@@ -165,11 +165,15 @@ async function renderAuth(mode) {
       circleName
         ? h('p', {}, 'Ti hanno invitato nella cerchia ', h('b', {}, `«${circleName}»`), ' 🎉')
         : h('p', { class: 'muted' }, 'Il social per i tuoi amici, con i giochi dentro.')),
+    isStandalone() ? null : h('button', { class: 'btn ghost block', style: 'margin-bottom:14px', onclick: () => showInstall(true) }, '📲 Installa l\'app sul telefono'),
     form,
     h('p', { class: 'center' }, mode === 'new' ? 'Hai già un account? ' : 'Prima volta qui? ',
       h('button', { class: 'linkbtn', onclick: () => renderAuth(mode === 'new' ? 'login' : 'new') }, mode === 'new' ? 'Accedi' : 'Crea il tuo profilo')),
   ));
-  setTimeout(() => (mode === 'login' && name.value ? pass : name).focus(), 50);
+  if (!isStandalone() && !localStorage.getItem('primaVisita')) {
+    localStorage.setItem('primaVisita', '1');
+    setTimeout(() => showInstall(true), 900);
+  } else setTimeout(() => (mode === 'login' && name.value ? pass : name).focus(), 50);
 }
 
 async function afterLogin() {
@@ -240,7 +244,7 @@ function circleForms() {
 }
 
 /* ============ GUSCIO ============ */
-const TABS = [['oggi', '☀️', 'Oggi'], ['chat', '💬', 'Chat'], ['giochi', '🎮', 'Giochi'], ['amici', '👥', 'Amici'], ['profilo', '👤', 'Profilo']];
+const TABS = [['oggi', '☀️', 'Oggi'], ['chat', '💬', 'Chat'], ['giochi', '🧩', 'Extra'], ['amici', '👥', 'Amici'], ['profilo', '👤', 'Profilo']];
 const badgeCount = (id) => (id === 'chat' ? S.unread : id === 'amici' ? S.pending : 0);
 function render() {
   const c = circle();
@@ -249,7 +253,12 @@ function render() {
         S.circles.map((x) => h('option', { value: x.id, selected: x.id === S.circleId }, x.name)))
     : h('div', { class: 'circle-pick' }, c.name);
   const content = h('div', { id: 'content' });
-  const page = h('div', { class: 'page' + (S.tab === 'chat' ? ' chat-page' : '') },
+  const banner = !isStandalone() && !sessionStorage.getItem('noBanner')
+    ? h('div', { class: 'install-bar' }, h('span', { style: 'flex:1' }, '📲 Usala come un\'app vera'),
+        h('button', { class: 'btn small white', onclick: () => showInstall(true) }, 'Installa'),
+        h('button', { class: 'btn plain small', 'aria-label': 'Chiudi', onclick: (e) => { sessionStorage.setItem('noBanner', '1'); e.target.closest('.install-bar').remove(); } }, '✕'))
+    : null;
+  const page = h('div', { class: 'page' + (S.tab === 'chat' ? ' chat-page' : '') }, banner,
     h('div', { class: 'topbar' }, h('div', { class: 'title' }, '💬 Chiacchiere'), picker), content);
   const nav = h('nav', { class: 'nav' }, h('div', { class: 'nav-inner' }, TABS.map(([id, ico, lbl]) =>
     h('button', { class: S.tab === id ? 'on' : '', onclick: () => { S.tab = id; if (id === 'chat') S.unread = 0; render(); window.scrollTo(0, 0); } },
@@ -271,10 +280,16 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `circle_id=eq.${cid}` }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions' }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refreshFeedSoon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'polls', filter: `circle_id=eq.${cid}` }, refreshPollsSoon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refreshPollsSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, onSocialChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'circle_invites', filter: `invitee=eq.${S.me.id}` }, onSocialChange)
     .subscribe();
   loadPending();
+}
+function refreshPollsSoon() {
+  clearTimeout(S.pollTimer);
+  S.pollTimer = setTimeout(() => loadPolls(document.getElementById('polls')), 400);
 }
 function onSocialChange() {
   loadPending();
@@ -486,6 +501,11 @@ const GAMES = {
   riflessi: { name: 'Riflessi', ico: '⚡', desc: 'Tocca appena diventa verde. Chi è più veloce?', unit: (s) => `${s} ms` },
 };
 async function tabGiochi(root) {
+  const view = S.extraView || 'giochi';
+  const seg = h('div', { class: 'seg' }, [['giochi', '🎮 Giochi'], ['utilita', '🧰 Utilità']].map(([k, l]) =>
+    h('button', { class: view === k ? 'on' : '', onclick: () => { S.extraView = k; render(); } }, l)));
+  root.append(seg);
+  if (view === 'utilita') return tabUtilita(root);
   const today = todayRome();
   const ids = [...S.members.keys()];
   const { data } = await sb.from('game_scores').select('user_id,game,score').eq('day', today).in('user_id', ids);
@@ -514,6 +534,105 @@ async function tabGiochi(root) {
     h('span', { class: 'btn small ghost' }, 'Proponi')));
 }
 
+/* ============ UTILITÀ ============ */
+function tabUtilita(root) {
+  const polls = h('div', { id: 'polls' }, h('p', { class: 'muted small' }, 'Carico…'));
+  root.append(
+    h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Sondaggi'),
+      h('button', { class: 'btn small', onclick: newPoll }, '➕ Nuovo')),
+      h('p', { class: 'muted small', style: 'margin:4px 0 8px' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), polls),
+    h('div', { class: 'card game-card', onclick: chiPaga }, h('div', { class: 'gico' }, '🎲'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Chi paga?'), h('div', { class: 'muted small' }, 'Estrae a sorte qualcuno della cerchia. Niente discussioni!')),
+      h('span', { class: 'btn small' }, 'Estrai')),
+    h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Ti serve qualcos\'altro?'), h('div', { class: 'muted small' }, 'Proponi un\'utilità o mandaci la tua app: la aggiungiamo per tutti.')),
+      h('span', { class: 'btn small ghost' }, 'Proponi')));
+  loadPolls(polls);
+}
+
+async function loadPolls(box) {
+  if (!box) return;
+  const { data, error } = await sb.from('polls').select('*, poll_votes(user_id,option)').eq('circle_id', S.circleId).order('created_at', { ascending: false }).limit(20);
+  if (error) return box.replaceChildren(h('p', { class: 'error' }, errMsg(error)));
+  if (!data.length) return box.replaceChildren(h('p', { class: 'muted small', style: 'margin:0' }, 'Nessun sondaggio. Creane uno!'));
+  box.replaceChildren(...data.map(pollCard));
+}
+function pollCard(p) {
+  const votes = p.poll_votes || [], tot = votes.length;
+  const mine = votes.find((v) => v.user_id === S.me.id)?.option;
+  const author = person(p.user_id);
+  return h('div', { class: 'poll' },
+    h('div', { class: 'row' }, h('b', { style: 'flex:1' }, p.question), p.closed ? h('span', { class: 'muted small' }, '🔒 chiuso') : null),
+    h('div', { class: 'muted small', style: 'margin-bottom:6px' }, `di ${author.username} · ${tot} ${tot === 1 ? 'voto' : 'voti'}`),
+    p.options.map((o, i) => {
+      const n = votes.filter((v) => v.option === i).length, pct = tot ? Math.round((n / tot) * 100) : 0;
+      const voters = votes.filter((v) => v.option === i).map((v) => person(v.user_id).avatar).join('');
+      return h('button', { class: 'poll-opt' + (mine === i ? ' on' : ''), disabled: p.closed, onclick: async () => {
+        const { error } = await sb.from('poll_votes').upsert({ poll_id: p.id, user_id: S.me.id, option: i });
+        if (error) return toast(errMsg(error));
+        loadPolls(document.getElementById('polls'));
+      } }, h('span', { class: 'bar', style: `width:${pct}%` }), h('span', { class: 'lbl' }, o), h('span', { class: 'cnt' }, voters, ` ${pct}%`));
+    }),
+    p.user_id === S.me.id && !p.closed ? h('button', { class: 'linkbtn small', onclick: async () => {
+      await sb.from('polls').update({ closed: true }).eq('id', p.id); loadPolls(document.getElementById('polls'));
+    } }, 'Chiudi sondaggio') : null);
+}
+function newPoll() {
+  const q = h('input', { class: 'input', maxlength: 200, placeholder: 'es. Dove andiamo sabato?' });
+  const opts = h('div', { class: 'stack' });
+  const addOpt = (v = '') => { if (opts.children.length < 6) opts.append(h('input', { class: 'input', maxlength: 60, placeholder: `Opzione ${opts.children.length + 1}`, value: v })); };
+  addOpt(); addOpt();
+  const err = h('div', { class: 'error' });
+  openSheet(h('form', { onsubmit: async (e) => {
+    e.preventDefault();
+    const options = [...opts.querySelectorAll('input')].map((x) => x.value.trim()).filter(Boolean);
+    if (q.value.trim().length < 2) return (err.textContent = 'Scrivi la domanda.');
+    if (options.length < 2) return (err.textContent = 'Servono almeno 2 opzioni.');
+    const { error } = await sb.from('polls').insert({ circle_id: S.circleId, user_id: S.me.id, question: q.value.trim(), options });
+    if (error) return (err.textContent = errMsg(error));
+    closeSheet(); toast('Sondaggio creato! 📊');
+    sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `📊 Nuovo sondaggio: «${q.value.trim()}» — vota in Extra → Utilità!` });
+    loadPolls(document.getElementById('polls'));
+  } },
+    h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Nuovo sondaggio'), h('button', { class: 'btn plain', type: 'button', onclick: closeSheet }, '✕')),
+    h('div', { class: 'field', style: 'margin-top:12px' }, h('label', {}, 'Domanda'), q),
+    h('div', { class: 'field' }, h('label', {}, 'Opzioni'), opts,
+      h('button', { class: 'linkbtn', type: 'button', onclick: () => addOpt() }, '➕ Aggiungi opzione')),
+    err, h('button', { class: 'btn block' }, 'Crea sondaggio')));
+}
+
+function chiPaga() {
+  const people = [...S.members.values()];
+  const chosen = new Set(people.map((p) => p.id));
+  const stage = h('div', { class: 'wheel' }, '🎲');
+  const list = h('div', { class: 'row wrap', style: 'justify-content:center;margin:12px 0' }, people.map((p) => {
+    const b = h('button', { class: 'chip on', type: 'button', onclick: () => {
+      chosen.has(p.id) ? chosen.delete(p.id) : chosen.add(p.id); b.classList.toggle('on');
+    } }, `${p.avatar} ${p.username}`);
+    return b;
+  }));
+  const go = h('button', { class: 'btn block', onclick: () => {
+    const pool = people.filter((p) => chosen.has(p.id));
+    if (pool.length < 2) return toast('Scegli almeno 2 persone');
+    go.disabled = true; let i = 0, steps = 18 + Math.floor(Math.random() * pool.length);
+    const tick = () => {
+      const p = pool[i++ % pool.length];
+      stage.replaceChildren(h('div', { style: 'font-size:64px' }, p.avatar), h('div', { style: 'font-size:1.3rem;font-weight:700' }, p.username));
+      if (i < steps) return setTimeout(tick, 60 + i * 12);
+      stage.classList.add('win'); go.disabled = false; go.textContent = 'Estrai di nuovo';
+      share.style.display = '';
+      share.onclick = async () => {
+        const { error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🎲 Estrazione «Chi paga?»: tocca a ${p.username}! ${p.avatar}💸` });
+        toast(error ? errMsg(error) : 'Mandato in chat 😈');
+      };
+    };
+    stage.classList.remove('win'); share.style.display = 'none'; tick();
+  } }, '🎲 Estrai');
+  const share = h('button', { class: 'btn ghost block', style: 'margin-top:10px;display:none' }, '💬 Manda il verdetto in chat');
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '🎲 Chi paga?'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+    h('p', { class: 'muted small' }, 'Tocca i nomi per togliere chi non c\'è.'), list, stage, go, share));
+}
+
 /* --- Posta delle proposte --- */
 const STATUS = { 'nuova': ['📨', 'Ricevuta'], 'in valutazione': ['🔍', 'La stiamo provando'], 'aggiunta': ['🎉', 'Aggiunta all\'app!'], 'non adatta': ['🙏', 'Non adatta per ora'] };
 function fileToBase64(f) {
@@ -526,7 +645,7 @@ async function openProposte() {
   const desc = h('textarea', { class: 'input', maxlength: 3000, placeholder: 'Com\'è fatto, come si gioca, cosa ti piacerebbe…' });
   const link = h('input', { class: 'input', type: 'url', maxlength: 500, placeholder: 'https://… (facoltativo)' });
   const files = h('input', { type: 'file', multiple: true, class: 'input', style: 'padding:10px' });
-  const kinds = h('div', { class: 'row wrap' }, [['gioco', '🎮 Gioco'], ['app', '🧩 App'], ['idea', '💡 Idea']].map(([k, l]) => {
+  const kinds = h('div', { class: 'row wrap' }, [['gioco', '🎮 Gioco'], ['app', '🧰 App / utilità'], ['idea', '💡 Idea']].map(([k, l]) => {
     const b = h('button', { type: 'button', class: 'btn small' + (k === kind ? '' : ' ghost'), onclick: () => {
       kind = k; kinds.querySelectorAll('button').forEach((x) => x.classList.add('ghost')); b.classList.remove('ghost');
     } }, l);
@@ -828,8 +947,11 @@ function maybeShowInstall() {
 }
 function showInstall(manual) {
   localStorage.setItem('installVisto', Date.now());
-  const remind = h('div', { class: 'card', style: 'background:var(--brand-soft);border:none' },
-    h('b', {}, '🔑 Ricordati:'), h('p', { style: 'margin:4px 0 0' }, 'quando apri l\'app dalla Home, entra con il nome ', h('b', {}, S.me.username), ' e la tua password.'));
+  const remind = S.me ? h('div', { class: 'card', style: 'background:var(--brand-soft);border:none' },
+    h('b', {}, '🔑 Ricordati:'), h('p', { style: 'margin:4px 0 0' }, 'quando apri l\'app dalla Home, entra con il nome ', h('b', {}, S.me.username), ' e la tua password.'))
+    : localStorage.getItem('invito') ? h('div', { class: 'card', style: 'background:var(--brand-soft);border:none' },
+      h('b', {}, '🔑 Il tuo codice invito:'), h('div', { class: 'invite-code', style: 'margin-top:6px;background:#fff' }, localStorage.getItem('invito')),
+      h('p', { class: 'small', style: 'margin:6px 0 0' }, 'Se l\'app dalla Home non ti fa entrare subito nella cerchia, usa questo codice.')) : null;
   let body;
   if (isIOS()) {
     body = h('div', {},
@@ -847,10 +969,10 @@ function showInstall(manual) {
     body = h('div', {}, h('h2', {}, '📲 Installa Chiacchiere'), h('p', { class: 'muted' }, 'Avrai l\'icona sul telefono, come un\'app vera.'), remind,
       h('button', { class: 'btn block', onclick: async () => { S.installEvt.prompt(); await S.installEvt.userChoice; S.installEvt = null; closeSheet(); } }, 'Installa'),
       h('button', { class: 'btn plain block', onclick: closeSheet }, 'Più tardi'));
-  } else if (manual) {
+  } else {
     body = h('div', {}, h('h2', {}, '📲 Installa Chiacchiere'),
       h('p', {}, 'Apri il menu del browser (', h('b', {}, '⋮'), ' in alto a destra) e tocca ', h('b', {}, '«Installa app»'), ' o ', h('b', {}, '«Aggiungi a schermata Home»'), '.'), remind,
       h('button', { class: 'btn block', onclick: closeSheet }, 'Ho capito'));
-  } else return;
+  }
   openSheet(body);
 }
