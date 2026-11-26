@@ -506,27 +506,123 @@ async function loadComments(postId, box, placeholder = 'Scrivi…') {
 }
 
 /* ============ CHAT ============ */
+const AUDIO_MAX = 120; // secondi
+const AUDIO_DAYS = 30; // i vocali si cancellano da soli dopo 30 giorni
+function pickAudioType() {
+  if (!window.MediaRecorder) return null;
+  return ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+}
+const fmtSecs = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
 async function tabChat(root) {
   const list = h('div', { class: 'chat', id: 'chat' }, h('p', { class: 'muted center' }, 'Carico i messaggi…'));
   const ta = h('textarea', { class: 'input', rows: 1, placeholder: 'Scrivi un messaggio…', maxlength: 1000,
-    oninput: () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; },
+    oninput: () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; toggleBtns(); },
     onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !isIOS()) { e.preventDefault(); sendMsg(); } } });
+  const sendBtn = h('button', { class: 'btn round', onclick: sendMsg, 'aria-label': 'Invia' }, '➤');
+  const micBtn = h('button', { class: 'btn round', onclick: startRec, 'aria-label': 'Messaggio vocale' }, '🎤');
+  const toggleBtns = () => { const t = !!ta.value.trim(); sendBtn.style.display = t || pickAudioType() === null ? '' : 'none'; micBtn.style.display = t || pickAudioType() === null ? 'none' : ''; };
   async function sendMsg() {
     const body = ta.value.trim(); if (!body) return;
-    ta.value = ''; ta.style.height = 'auto';
+    ta.value = ''; ta.style.height = 'auto'; toggleBtns();
     const { data, error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body }).select().single();
-    if (error) { toast(errMsg(error)); ta.value = body; return; }
+    if (error) { toast(errMsg(error)); ta.value = body; toggleBtns(); return; }
     appendMsg(data, true);
   }
-  root.append(list, h('div', { class: 'chat-input' }, h('div', { class: 'inner' }, ta,
-    h('button', { class: 'btn', onclick: sendMsg, 'aria-label': 'Invia' }, '➤'))));
+
+  // --- registrazione vocale ---
+  const normalBar = h('div', { class: 'inner' }, ta, sendBtn, micBtn);
+  const recTime = h('span', { class: 'rec-time' }, '0:00');
+  const recBar = h('div', { class: 'inner rec', style: 'display:none' },
+    h('button', { class: 'btn round ghost', 'aria-label': 'Annulla', onclick: () => stopRec(false) }, '✕'),
+    h('div', { class: 'rec-info' }, h('span', { class: 'rec-dot' }), recTime, h('span', { class: 'muted small' }, ' sto registrando…')),
+    h('button', { class: 'btn round', 'aria-label': 'Invia vocale', onclick: () => stopRec(true) }, '➤'));
+  let rec = null, chunks = [], stream = null, t0 = 0, tick = null, keep = false;
+  async function startRec() {
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch { return toast('Serve il permesso del microfono 🎤', 3000); }
+    const type = pickAudioType();
+    rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 32000 });
+    chunks = []; keep = false;
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      clearInterval(tick); recBar.style.display = 'none'; normalBar.style.display = '';
+      const secs = Math.round((Date.now() - t0) / 1000);
+      if (!keep) return;
+      if (secs < 1) return toast('Troppo corto: tieni premuto un po\' di più');
+      const blob = new Blob(chunks, { type: (rec.mimeType || 'audio/mp4').split(';')[0] });
+      await sendAudio(blob, secs);
+    };
+    rec.start(); t0 = Date.now();
+    normalBar.style.display = 'none'; recBar.style.display = ''; recTime.textContent = '0:00';
+    tick = setInterval(() => {
+      const s = (Date.now() - t0) / 1000; recTime.textContent = fmtSecs(s);
+      if (s >= AUDIO_MAX) stopRec(true);
+    }, 250);
+  }
+  function stopRec(send) { keep = send; if (rec && rec.state !== 'inactive') rec.stop(); }
+  async function sendAudio(blob, secs) {
+    if (blob.size > 1048576) return toast('Vocale troppo lungo');
+    const ext = blob.type.includes('webm') ? 'webm' : 'm4a';
+    const path = `${S.circleId}/${S.me.id}/${Date.now()}.${ext}`;
+    toast('Invio il vocale…');
+    const up = await sb.storage.from('audio').upload(path, blob, { contentType: blob.type });
+    if (up.error) return toast(errMsg(up.error));
+    const { data, error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, audio_path: path, audio_secs: secs }).select().single();
+    if (error) { sb.storage.from('audio').remove([path]); return toast(errMsg(error)); }
+    appendMsg(data, true);
+  }
+
+  root.append(list, h('div', { class: 'chat-input' }, normalBar, recBar));
+  toggleBtns();
   const { data, error } = await sb.from('messages').select('*').eq('circle_id', S.circleId).order('created_at', { ascending: false }).limit(100);
   if (error) return list.replaceChildren(h('p', { class: 'error' }, errMsg(error)));
   list.replaceChildren();
   if (!data.length) list.append(h('div', { class: 'empty', id: 'chat-empty' }, h('div', { class: 'big' }, '👋'), h('p', {}, 'Nessun messaggio. Rompi il ghiaccio!')));
   data.reverse().forEach((m) => appendMsg(m, false));
   window.scrollTo(0, document.body.scrollHeight);
+  cleanOldAudio();
 }
+
+function audioBubble(m) {
+  const old = Date.now() - Date.parse(m.created_at) > AUDIO_DAYS * 864e5;
+  const btn = h('button', { class: 'play', 'aria-label': 'Ascolta' }, '▶');
+  const fill = h('span', { class: 'fill' });
+  const dur = h('span', { class: 'dur' }, fmtSecs(m.audio_secs || 0));
+  const wrap = h('div', { class: 'bubble voice' }, btn, h('span', { class: 'track' }, fill), dur);
+  if (old) { btn.disabled = true; dur.textContent = 'scaduto'; return wrap; }
+  let audio = null;
+  btn.onclick = async () => {
+    if (audio && !audio.paused) { audio.pause(); return; }
+    if (!audio) {
+      btn.textContent = '…';
+      const { data, error } = await sb.storage.from('audio').download(m.audio_path);
+      if (error) { btn.textContent = '▶'; return toast('Vocale non disponibile'); }
+      audio = new Audio(URL.createObjectURL(data));
+      audio.ontimeupdate = () => { const d = audio.duration && isFinite(audio.duration) ? audio.duration : (m.audio_secs || 1); fill.style.width = Math.min(100, (audio.currentTime / d) * 100) + '%'; dur.textContent = fmtSecs(audio.currentTime); };
+      audio.onpause = () => (btn.textContent = '▶');
+      audio.onplay = () => (btn.textContent = '❚❚');
+      audio.onended = () => { fill.style.width = '0%'; dur.textContent = fmtSecs(m.audio_secs || 0); };
+    }
+    document.querySelectorAll('audio').forEach((a) => a.pause());
+    S.playing?.pause(); S.playing = audio;
+    audio.play().catch(() => toast('Non riesco a riprodurlo su questo telefono'));
+  };
+  return wrap;
+}
+
+async function cleanOldAudio() {
+  // ognuno cancella i propri vocali più vecchi di 30 giorni (tiene leggero lo spazio gratuito)
+  const last = +localStorage.getItem('pulizia-audio') || 0;
+  if (Date.now() - last < 864e5) return;
+  localStorage.setItem('pulizia-audio', Date.now());
+  const folder = `${S.circleId}/${S.me.id}`;
+  const { data } = await sb.storage.from('audio').list(folder, { limit: 100, sortBy: { column: 'created_at', order: 'asc' } });
+  const old = (data || []).filter((f) => Date.now() - Date.parse(f.created_at) > AUDIO_DAYS * 864e5).map((f) => `${folder}/${f.name}`);
+  if (old.length) sb.storage.from('audio').remove(old);
+}
+
 function appendMsg(m, scroll) {
   const list = document.getElementById('chat'); if (!list) return;
   if (list.querySelector(`[data-id="${m.id}"]`)) return;
@@ -534,7 +630,9 @@ function appendMsg(m, scroll) {
   const me = m.user_id === S.me.id, w = person(m.user_id);
   list.append(h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
     me ? null : avatarEl(w, 'sm'),
-    h('div', {}, me ? null : h('div', { class: 'who' }, w.username), h('div', { class: 'bubble' }, m.body), h('div', { class: 'time' }, timeOf(m.created_at)))));
+    h('div', {}, me ? null : h('div', { class: 'who' }, w.username),
+      m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body),
+      h('div', { class: 'time' }, timeOf(m.created_at)))));
   if (scroll) window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
 }
 
