@@ -15,7 +15,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 /* ============ STATO ============ */
 const S = {
   user: null, me: null, circles: [], circleId: null, members: new Map(),
-  tab: 'oggi', channel: null, unread: 0, installEvt: null, feedTimer: null, sub: null,
+  tab: 'oggi', channel: null, unread: 0, pending: 0, installEvt: null, feedTimer: null, sub: null,
 };
 
 /* ============ UTILITÀ ============ */
@@ -240,7 +240,8 @@ function circleForms() {
 }
 
 /* ============ GUSCIO ============ */
-const TABS = [['oggi', '☀️', 'Oggi'], ['chat', '💬', 'Chat'], ['giochi', '🎮', 'Giochi'], ['profilo', '👤', 'Profilo']];
+const TABS = [['oggi', '☀️', 'Oggi'], ['chat', '💬', 'Chat'], ['giochi', '🎮', 'Giochi'], ['amici', '👥', 'Amici'], ['profilo', '👤', 'Profilo']];
+const badgeCount = (id) => (id === 'chat' ? S.unread : id === 'amici' ? S.pending : 0);
 function render() {
   const c = circle();
   const picker = S.circles.length > 1
@@ -253,9 +254,9 @@ function render() {
   const nav = h('nav', { class: 'nav' }, h('div', { class: 'nav-inner' }, TABS.map(([id, ico, lbl]) =>
     h('button', { class: S.tab === id ? 'on' : '', onclick: () => { S.tab = id; if (id === 'chat') S.unread = 0; render(); window.scrollTo(0, 0); } },
       h('span', { class: 'ico' }, ico), lbl,
-      id === 'chat' && S.unread ? h('span', { class: 'badge' }, S.unread > 9 ? '9+' : S.unread) : null))));
+      badgeCount(id) ? h('span', { class: 'badge' }, badgeCount(id) > 9 ? '9+' : badgeCount(id)) : null))));
   $app.replaceChildren(page, nav);
-  ({ oggi: tabOggi, chat: tabChat, giochi: tabGiochi, profilo: tabProfilo })[S.tab](content);
+  ({ oggi: tabOggi, chat: tabChat, giochi: tabGiochi, amici: tabAmici, profilo: tabProfilo })[S.tab](content);
 }
 
 /* ============ TEMPO REALE ============ */
@@ -270,13 +271,31 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `circle_id=eq.${cid}` }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions' }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refreshFeedSoon)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, onSocialChange)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'circle_invites', filter: `invitee=eq.${S.me.id}` }, onSocialChange)
     .subscribe();
+  loadPending();
+}
+function onSocialChange() {
+  loadPending();
+  if (S.tab === 'amici') { const c = document.getElementById('content'); if (c && !c.contains(document.activeElement)) render(); }
 }
 function updateBadge() {
-  const b = document.querySelector('.nav button:nth-child(2)');
-  if (!b) return;
-  b.querySelector('.badge')?.remove();
-  if (S.unread) b.append(h('span', { class: 'badge' }, S.unread > 9 ? '9+' : S.unread));
+  TABS.forEach(([id], i) => {
+    const b = document.querySelector(`.nav button:nth-child(${i + 1})`);
+    if (!b) return;
+    b.querySelector('.badge')?.remove();
+    const n = badgeCount(id);
+    if (n) b.append(h('span', { class: 'badge' }, n > 9 ? '9+' : n));
+  });
+}
+async function loadPending() {
+  const [f, i] = await Promise.all([
+    sb.from('friendships').select('requester', { count: 'exact', head: true }).eq('addressee', S.me.id).eq('status', 'pending'),
+    sb.from('circle_invites').select('id', { count: 'exact', head: true }).eq('invitee', S.me.id),
+  ]);
+  S.pending = (f.count || 0) + (i.count || 0);
+  updateBadge();
 }
 function refreshFeedSoon() {
   if (S.tab !== 'oggi') return;
@@ -587,6 +606,101 @@ async function gameRiflessi() {
   openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '⚡ Riflessi'),
     h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), info, pad),
   () => { clearTimeout(timer); if (S.tab === 'giochi') render(); });
+}
+
+/* ============ AMICI ============ */
+async function tabAmici(root) {
+  const me = S.me.id;
+  const [fr, inv] = await Promise.all([
+    sb.from('friendships').select('requester,addressee,status'),
+    sb.from('circle_invites').select('id,circle_id,inviter,circles(name)').eq('invitee', me),
+  ]);
+  const rel = fr.data || [];
+  const otherOf = (r) => (r.requester === me ? r.addressee : r.requester);
+  const ids = [...new Set([...rel.map(otherOf), ...(inv.data || []).map((i) => i.inviter)])];
+  const people = new Map();
+  if (ids.length) {
+    const { data } = await sb.from('profiles').select('id,username,avatar,color').in('id', ids);
+    (data || []).forEach((p) => people.set(p.id, p));
+  }
+  const pp = (id) => people.get(id) || person(id);
+  const statusOf = (id) => {
+    const r = rel.find((x) => otherOf(x) === id);
+    if (!r) return 'none';
+    if (r.status === 'accepted') return 'friend';
+    return r.requester === me ? 'sent' : 'received';
+  };
+  const c = circle();
+
+  // ricerca
+  const results = h('div');
+  let tmr;
+  const q = h('input', { class: 'input', type: 'search', placeholder: 'Cerca una persona per nome…', autocapitalize: 'none',
+    oninput: () => { clearTimeout(tmr); tmr = setTimeout(search, 300); } });
+  async function search() {
+    const term = q.value.trim();
+    if (term.length < 2) return results.replaceChildren();
+    const { data, error } = await sb.rpc('search_profiles', { q: term });
+    if (error) return results.replaceChildren(h('p', { class: 'error' }, errMsg(error)));
+    if (!data.length) return results.replaceChildren(h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno con questo nome.'));
+    data.forEach((p) => people.set(p.id, p));
+    results.replaceChildren(...data.map((p) => personRow(p, actionFor(p.id))));
+  }
+  function actionFor(id) {
+    const st = statusOf(id);
+    if (st === 'friend') return h('span', { class: 'done-tag' }, '✓ Amici');
+    if (st === 'sent') return h('span', { class: 'muted small' }, 'Richiesta inviata');
+    if (st === 'received') return h('button', { class: 'btn small', onclick: () => respond(id, true) }, 'Accetta');
+    return h('button', { class: 'btn small ghost', onclick: async (e) => {
+      e.target.disabled = true;
+      const { data, error } = await sb.rpc('send_friend_request', { target: id });
+      if (error) { e.target.disabled = false; return toast(errMsg(error)); }
+      toast(data === 'accepted' ? 'Ora siete amici! 🎉' : 'Richiesta inviata 👍'); render();
+    } }, '➕ Amico');
+  }
+  async function respond(id, ok) {
+    const { error } = await sb.rpc('respond_friend_request', { other: id, accept: ok });
+    if (error) return toast(errMsg(error));
+    toast(ok ? 'Ora siete amici! 🎉' : 'Richiesta rifiutata'); loadPending(); render();
+  }
+  const personRow = (p, action) => h('div', { class: 'rank' }, avatarEl(p, 'sm'), h('div', { style: 'flex:1;font-weight:700' }, p.username), action);
+
+  const received = rel.filter((r) => r.status === 'pending' && r.addressee === me);
+  const friends = rel.filter((r) => r.status === 'accepted').map(otherOf);
+  const invites = inv.data || [];
+
+  root.append(h('div', { class: 'card' }, h('h2', {}, '🔎 Trova persone'),
+    h('p', { class: 'muted small' }, 'Si vede solo il nome. Nessuno entra nelle tue cerchie senza un tuo invito.'), q, results));
+
+  if (invites.length || received.length) {
+    root.append(h('div', { class: 'card', style: 'border-color:var(--brand)' }, h('h2', {}, '📬 Per te'),
+      invites.map((i) => h('div', { class: 'rank' }, avatarEl(pp(i.inviter), 'sm'),
+        h('div', { style: 'flex:1' }, h('b', {}, pp(i.inviter).username), ' ti invita in ', h('b', {}, `«${i.circles?.name || 'una cerchia'}»`)),
+        h('button', { class: 'btn small', onclick: async () => {
+          const { data, error } = await sb.rpc('respond_circle_invite', { inv: i.id, accept: true });
+          if (error) return toast(errMsg(error));
+          await loadCircles(); loadPending(); toast('Sei entrato nella cerchia! 🎉'); S.tab = 'oggi'; openCircle(data);
+        } }, 'Entra'),
+        h('button', { class: 'btn small plain', 'aria-label': 'Rifiuta', onclick: async () => {
+          await sb.rpc('respond_circle_invite', { inv: i.id, accept: false }); loadPending(); render();
+        } }, '✕'))),
+      received.map((r) => h('div', { class: 'rank' }, avatarEl(pp(r.requester), 'sm'),
+        h('div', { style: 'flex:1' }, h('b', {}, pp(r.requester).username), ' vuole essere tuo amico'),
+        h('button', { class: 'btn small', onclick: () => respond(r.requester, true) }, 'Accetta'),
+        h('button', { class: 'btn small plain', 'aria-label': 'Rifiuta', onclick: () => respond(r.requester, false) }, '✕')))));
+  }
+
+  root.append(h('div', { class: 'card' }, h('h2', {}, `💛 I tuoi amici (${friends.length})`),
+    friends.length ? friends.map((id) => {
+      const inCircle = S.members.has(id);
+      return personRow(pp(id), inCircle ? h('span', { class: 'muted small' }, `già in «${c.name}»`)
+        : h('button', { class: 'btn small ghost', onclick: async (e) => {
+          e.target.disabled = true;
+          const { error } = await sb.rpc('invite_to_circle', { c: S.circleId, target: id });
+          if (error) { e.target.disabled = false; return toast(errMsg(error)); }
+          e.target.textContent = 'Invitato ✓'; toast(`Invito mandato per «${c.name}»`);
+        } }, `Invita in «${c.name}»`));
+    }) : h('p', { class: 'muted small', style: 'margin:0' }, 'Ancora nessuno. Cerca un nome qui sopra!')));
 }
 
 /* ============ PROFILO ============ */
