@@ -508,6 +508,74 @@ async function tabGiochi(root) {
   }
   root.append(h('div', { class: 'card game-card disabled' }, h('div', { class: 'gico' }, '🐠'),
     h('div', {}, h('h3', { style: 'margin:0' }, "Palline d'Acquario"), h('div', { class: 'muted small' }, 'In arrivo presto, con la classifica degli amici!'))));
+  root.append(h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
+    h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Hai fatto un gioco o un\'app?'),
+      h('div', { class: 'muted small' }, 'Mandacelo! Se funziona lo aggiungiamo a Chiacchiere per tutti. Anche solo un\'idea va bene.')),
+    h('span', { class: 'btn small ghost' }, 'Proponi')));
+}
+
+/* --- Posta delle proposte --- */
+const STATUS = { 'nuova': ['📨', 'Ricevuta'], 'in valutazione': ['🔍', 'La stiamo provando'], 'aggiunta': ['🎉', 'Aggiunta all\'app!'], 'non adatta': ['🙏', 'Non adatta per ora'] };
+function fileToBase64(f) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(f); });
+}
+async function openProposte() {
+  let kind = 'gioco';
+  const err = h('div', { class: 'error' });
+  const title = h('input', { class: 'input', maxlength: 80, placeholder: 'es. Briscola online' });
+  const desc = h('textarea', { class: 'input', maxlength: 3000, placeholder: 'Com\'è fatto, come si gioca, cosa ti piacerebbe…' });
+  const link = h('input', { class: 'input', type: 'url', maxlength: 500, placeholder: 'https://… (facoltativo)' });
+  const files = h('input', { type: 'file', multiple: true, class: 'input', style: 'padding:10px' });
+  const kinds = h('div', { class: 'row wrap' }, [['gioco', '🎮 Gioco'], ['app', '🧩 App'], ['idea', '💡 Idea']].map(([k, l]) => {
+    const b = h('button', { type: 'button', class: 'btn small' + (k === kind ? '' : ' ghost'), onclick: () => {
+      kind = k; kinds.querySelectorAll('button').forEach((x) => x.classList.add('ghost')); b.classList.remove('ghost');
+    } }, l);
+    return b;
+  }));
+  const mine = h('div', {}, h('p', { class: 'muted small' }, 'Carico…'));
+  const send = h('button', { class: 'btn block', type: 'submit' }, '📮 Invia proposta');
+  const form = h('form', { onsubmit: async (e) => {
+    e.preventDefault(); err.textContent = '';
+    const fl = [...files.files];
+    if (title.value.trim().length < 2) return (err.textContent = 'Dai un nome alla tua proposta.');
+    if (fl.length > 3) return (err.textContent = 'Massimo 3 file.');
+    const big = fl.find((f) => f.size > 5 * 1024 * 1024);
+    if (big) return (err.textContent = `«${big.name}» è più grande di 5 MB. Caricalo su Google Drive e metti il link.`);
+    if (link.value && !/^https:\/\//i.test(link.value.trim())) return (err.textContent = 'Il link deve iniziare con https://');
+    send.disabled = true; send.textContent = 'Invio…';
+    try {
+      const { data: sub, error } = await sb.from('submissions').insert({ user_id: S.me.id, kind, title: title.value.trim(),
+        description: desc.value.trim() || null, link: link.value.trim() || null }).select('id').single();
+      if (error) throw error;
+      for (const f of fl) {
+        const { error: fe } = await sb.from('submission_files').insert({ submission_id: sub.id, name: f.name, mime: f.type || null, size: f.size, data_base64: await fileToBase64(f) });
+        if (fe) throw fe;
+      }
+      toast('Proposta inviata, grazie! 🙌');
+      form.reset(); loadMine();
+    } catch (ex) { err.textContent = errMsg(ex); }
+    send.disabled = false; send.textContent = '📮 Invia proposta';
+  } },
+    h('div', { class: 'field' }, h('label', {}, 'Cosa ci mandi?'), kinds),
+    h('div', { class: 'field' }, h('label', {}, 'Nome'), title),
+    h('div', { class: 'field' }, h('label', {}, 'Descrizione'), desc),
+    h('div', { class: 'field' }, h('label', {}, 'File'), files,
+      h('p', { class: 'muted small', style: 'margin:6px 0 0' }, 'Fino a 3 file da 5 MB: HTML, ZIP, codice, immagini. Per un APK manda anche il codice sorgente, o un link.')),
+    h('div', { class: 'field' }, h('label', {}, 'Link'), link),
+    err, send);
+  async function loadMine() {
+    const { data } = await sb.from('submissions').select('id,kind,title,status,reply,created_at').order('created_at', { ascending: false });
+    if (!data?.length) return mine.replaceChildren(h('p', { class: 'muted small' }, 'Non hai ancora mandato niente.'));
+    mine.replaceChildren(...data.map((s) => h('div', { class: 'rank', style: 'align-items:flex-start' },
+      h('div', { style: 'font-size:22px' }, STATUS[s.status][0]),
+      h('div', { style: 'flex:1' }, h('b', {}, s.title), h('div', { class: 'muted small' }, STATUS[s.status][1]),
+        s.reply ? h('div', { class: 'comment', style: 'margin-top:6px' }, h('div', { class: 'bubble' }, h('b', {}, 'Risposta'), s.reply)) : null))));
+  }
+  loadMine();
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📮 Proponi un gioco o un\'app'),
+    h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+  h('p', { class: 'muted' }, 'Gli diamo un\'occhiata, lo proviamo e, se va, lo aggiungiamo a Chiacchiere per tutti.'),
+  form, h('h3', { style: 'margin-top:22px' }, 'Le tue proposte'), mine));
 }
 
 async function saveScore(game, score, detail) {
