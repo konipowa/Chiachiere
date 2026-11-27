@@ -1,6 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
+const VERSIONE = '18';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -73,7 +74,16 @@ function errMsg(e) {
 
 /* ============ AVVIO ============ */
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.installEvt = e; });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('./sw.js').then((reg) => reg.update()).catch(() => {});
+  // quando arriva una versione nuova: ricarica da solo se non stai facendo niente, altrimenti avvisa
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    const busy = document.getElementById('overlay') || document.querySelector('.topo-root') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '');
+    if (!busy) location.reload(); else toast('✨ Novità disponibili: riapri l\'app per vederle', 4000);
+  });
+}
 
 (function readInvite() {
   const qs = new URLSearchParams(location.search);
@@ -1095,7 +1105,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js');
+  const { startTopolini } = await import('./topolini.js?v=18');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1332,6 +1342,7 @@ function tabProfilo(root) {
     h('div', { class: 'card stack' },
       h('button', { class: 'btn ghost block', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Altre cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '➕ Crea o entra in un\'altra cerchia'),
       !isStandalone() ? h('button', { class: 'btn ghost block', onclick: () => showInstall(true) }, '📲 Metti l\'app nella schermata Home') : null,
+      h('p', { class: 'center credit' }, `Chiacchiere · versione ${VERSIONE}`),
       h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) sb.auth.signOut(); } }, 'Esci')),
   );
 }
