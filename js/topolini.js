@@ -2,6 +2,8 @@
 // Regole: tocchi la tana in cima a una colonna, va in uno dei 5 posti e i topolini del suo colore
 // escono a mangiare solo i blocchetti raggiungibili dall'esterno. Se riempi i 5 posti senza poter mangiare, hai perso.
 
+import { MOSAICI } from './livelli-topolini.js';
+
 const SLOTS = 5;
 
 /* ---------------- DISEGNI ---------------- */
@@ -34,13 +36,6 @@ const DESIGNS = [
   { name: 'Arcobaleno', pal: { R: C.rosso, O: C.arancio, Y: C.giallo, G: C.verde, B: C.azzurro, V: C.viola }, map: [
     '...RRRRRR...', '..RRRRRRRR..', '.RROOOOOORR.', 'RROOYYYYOORR', 'ROOYYGGYYOOR', 'ROYYGGGGYYOR', 'ROYGGBBGGYOR', 'ROYGBVVBGYOR', 'ROYGBVVBGYOR'] },
 ];
-const RANDOM_PALS = [
-  [C.rosso, C.rosa, C.bianco, C.giallo, C.arancio, C.viola],
-  [C.blu, C.azzurro, C.menta, C.bianco, C.viola, C.rosa],
-  [C.verdeScuro, C.verde, C.giallo, C.arancio, C.marrone, C.crema],
-  [C.viola, C.rosa, C.azzurro, C.crema, C.rosso, C.menta],
-];
-
 function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 function designFor(level) {
@@ -50,25 +45,13 @@ function designFor(level) {
     const grid = d.map.map((row) => [...row].map((ch) => (ch === '.' ? -1 : colors.indexOf(ch))));
     return { name: d.name, grid, colors: colors.map((ch) => d.pal[ch]) };
   }
-  // livelli generati: forme simmetriche a strati, sempre più grandi e con più colori
-  const r = rng(level * 7919);
-  const size = Math.min(16, 10 + Math.floor((level - DESIGNS.length) / 5));
-  const nCol = Math.min(6, 3 + Math.floor((level - DESIGNS.length) / 8));
-  const pal = RANDOM_PALS[level % RANDOM_PALS.length].slice(0, nCol);
-  const half = Math.ceil(size / 2), cx = (size - 1) / 2, cy = (size - 1) / 2;
-  const wobble = Array.from({ length: 8 }, () => 0.75 + r() * 0.35);
-  const grid = Array.from({ length: size }, () => Array(size).fill(-1));
-  for (let y = 0; y < size; y++) for (let x = 0; x < half; x++) {
-    const dx = (x - cx) / (size / 2), dy = (y - cy) / (size / 2);
-    const ang = Math.atan2(dy, Math.abs(dx));
-    const k = wobble[Math.floor(((ang + Math.PI) / (2 * Math.PI)) * 8) % 8];
-    const d = Math.hypot(dx, dy) / k;
-    if (d > 1) continue;
-    let layer = Math.min(nCol - 1, Math.floor((1 - d) * nCol * 0.999));
-    if (r() < 0.12) layer = Math.max(0, layer - 1);
-    grid[y][x] = layer; grid[y][size - 1 - x] = layer;
-  }
-  return { name: `Disegno ${level}`, grid, colors: pal };
+  // dal livello 12: mosaici ricavati da Twemoji, dal più facile al più difficile, poi un giro bonus infinito
+  const idx = level - DESIGNS.length - 1, P = MOSAICI.percorso.length, B = MOSAICI.bonus.length;
+  const giro = idx < P ? 0 : 1 + Math.floor((idx - P) / B);
+  const m = idx < P ? MOSAICI.percorso[idx] : MOSAICI.bonus[(idx - P) % B];
+  const grid = [];
+  for (let y = 0; y < m.h; y++) grid.push([...m.g.slice(y * m.w, (y + 1) * m.w)].map((ch) => (ch === '.' ? -1 : 'abcdefgh'.indexOf(ch))));
+  return { name: m.n + (giro ? ' ' + '✦'.repeat(Math.min(giro, 5)) : ''), grid, colors: m.c };
 }
 
 /* ---------------- LOGICA ---------------- */
@@ -226,7 +209,8 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
       <button class="topo-x topo-restart" aria-label="Ricomincia">↻</button>
     </div>
     <div class="topo-bar"><span></span></div>
-    <canvas></canvas>
+    <div class="topo-stage"><canvas></canvas></div>
+    <div class="topo-credit">originale Chiacchiere · disegni da Twemoji (CC-BY 4.0)</div>
     <div class="topo-modal" hidden></div>`;
   document.body.append(root); document.body.style.overflow = 'hidden';
   const canvas = root.querySelector('canvas'), ctx = canvas.getContext('2d');
@@ -287,7 +271,7 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
   let buzzT = 0; const buzz = () => { buzzT = performance.now(); navigator.vibrate?.([20, 40, 20]); };
   canvas.addEventListener('pointerdown', tap);
   window.addEventListener('resize', resize);
-  const ro = new ResizeObserver(() => G && resize()); ro.observe(canvas);
+  const ro = new ResizeObserver(() => G && resize()); ro.observe(canvas.parentNode);
   window.__topo = { laneX: (i) => laneX(i), laneY: (k) => laneY(k), rect: () => canvas.getBoundingClientRect() };
 
   function pickTarget(color, sx) {

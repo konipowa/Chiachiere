@@ -1,6 +1,6 @@
 // Service worker: rete prima, cache come riserva (solo file dell'app, mai i dati).
-const CACHE = 'chiacchiere-v13';
-const SHELL = ['./', './index.html', './css/style.css', './js/app.js', './js/parole.js', './js/topolini.js', './js/vendor/supabase.js', './manifest.webmanifest', './icons/icon-192.png'];
+const CACHE = 'chiacchiere-v15';
+const SHELL = ['./', './index.html', './css/style.css', './js/app.js', './js/parole.js', './js/topolini.js', './js/livelli-topolini.js', './js/vendor/supabase.js', './manifest.webmanifest', './icons/icon-192.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('chiacchiere-v') && k !== CACHE).map((k) => caches.delete(k)))));
