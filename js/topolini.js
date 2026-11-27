@@ -2,7 +2,7 @@
 // Regole: tocchi la tana in cima a una colonna, va in uno dei 5 posti e i topolini del suo colore
 // escono a mangiare solo i blocchetti raggiungibili dall'esterno. Se riempi i 5 posti senza poter mangiare, hai perso.
 
-import { MOSAICI } from './livelli-topolini.js?v=19';
+import { MOSAICI } from './livelli-topolini.js?v=20';
 
 const SLOTS = 5;
 
@@ -290,8 +290,9 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cw = rect.width, ch = rect.height;
     const picH = ch * 0.5;
-    cell = Math.min((cw - 28) / W, (picH - 20) / H);
-    ox = (cw - cell * W) / 2; oy = 10 + (picH - 10 - cell * H) / 2;
+    // spazio attorno al disegno per il sentiero dei topolini (1 casella + margine), così non escono dallo schermo
+    cell = Math.min(cw / (W + 3.4), (picH - 6) / (H + 3.4));
+    ox = (cw - cell * W) / 2; oy = 6 + cell * 1.7 + (picH - 6 - cell * (H + 3.4)) / 2;
     const slotW = Math.min(62, (cw - 24) / SLOTS - 10);
     const slotY = picH + slotW * 0.75 + 12;
     const laneTop = slotY + slotW * 0.6 + 24;
@@ -342,6 +343,8 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
 
   // la passeggiata: camminano sul bordo e nei buchi già mangiati, mai sopra i blocchetti
   const WALK = 175; // pixel al secondo su un telefono normale
+  const GAP = 450; // millisecondi tra un topolino e il successivo all'ingresso (fila ordinata)
+  let lastDoor = 0;
   const layoutScale = () => Math.max(0.8, Math.min(1.4, layout.cw / 390));
   const cellCenter = (gy, gx) => [ox + (gx - 0.5) * cell, oy + (gy - 0.5) * cell]; // coordinate con bordo di 1 cella
   // percorso ordinato: tutti entrano dallo stesso punto in basso e girano attorno al disegno in senso orario,
@@ -409,14 +412,14 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     slots.forEach((s, si) => {
       if (!s) return;
       s.cool -= dt;
-      if (s.left > 0 && s.cool <= 0 && now - s.born > 300) {
+      if (s.left > 0 && s.cool <= 0 && now - s.born > 300 && now - lastDoor > GAP) {
         const sx = slotX(si), sy = layout.slotY - layout.slotW * 0.3;
         const target = pickTarget(s.color, sx);
         if (target >= 0) {
           eating.set(target, (eating.get(target) || 0) + 1);
           const route = walkPath(sx, sy, target);
           mice.push({ slot: si, color: s.color, target, route, path: route.go, lens: pathLens(route.go), d: 0, phase: 'go', wait: 0 });
-          s.left--; s.inFlight++; s.cool = 0.16;
+          s.left--; s.inFlight++; s.cool = 0.3; lastDoor = now;
         }
       }
     });
@@ -513,7 +516,7 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     // topolini
     for (const m of mice) {
       const [x, y, dx] = posOnPath(m);
-      const sz = Math.max(16, Math.min(26, cell * 1.05));
+      const sz = Math.max(13, Math.min(20, cell * 0.8));
       if (m.phase === 'back' && m.carry) {
         drawMouse(ctx, x, y, sz, colors[m.color], now / 1000 + m.slot, dx < 0);
         const b = sz * 0.42; drawBlock(ctx, x - b / 2 + (dx < 0 ? sz * 0.08 : -sz * 0.08), y - sz * 0.62, b, m.carry);
