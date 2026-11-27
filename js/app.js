@@ -841,8 +841,31 @@ function chiPaga() {
 }
 
 /* ============ BABBO NATALE SEGRETO ============ */
+const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));
 const amazonLink = (q, lo, hi) => `https://www.amazon.it/s?k=${encodeURIComponent(q || 'idee regalo')}&rh=p_36%3A${lo * 100}-${hi * 100}`;
 const daysTo = (d) => Math.ceil((Date.parse(d + 'T12:00:00') - Date.now()) / 864e5);
+
+const AMZ_RE = /^https:\/\/([a-z0-9-]+\.)*(amazon\.[a-z.]+|amzn\.(eu|to|com|it))(\/|$)/i;
+// pagina "condividi" di Amazon: il link è spesso dentro un testo, lo tiro fuori
+const pickUrl = (t) => (String(t).match(/https:\/\/\S+/) || [''])[0].replace(/[)\].,]+$/, '');
+function wishEditor(ev, me, onSaved) {
+  const wish = h('textarea', { class: 'input', maxlength: 500, placeholder: 'es. Libri gialli, cose per il caffè, niente calzini 😅' });
+  wish.value = me?.wishlist || '';
+  const links = [0, 1].map((i) => { const x = h('input', { class: 'input', type: 'url', inputmode: 'url', placeholder: `🔗 Link Amazon ${i + 1} (facoltativo)` }); x.value = me?.wish_links?.[i] || ''; return x; });
+  return h('div', { class: 'stack' },
+    h('label', { style: 'margin-top:6px' }, '💭 Cosa ti piacerebbe ricevere?'),
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Indizi per chi ti farà il regalo. Tutto facoltativo.'),
+    wish, ...links,
+    h('p', { class: 'muted small', style: 'margin:0' }, 'Su Amazon apri il prodotto → tocca Condividi → Copia link, poi incollalo qui.'),
+    h('button', { class: 'btn small', onclick: async () => {
+      const urls = links.map((x) => pickUrl(x.value.trim())).filter(Boolean);
+      const bad = urls.find((u) => !AMZ_RE.test(u));
+      if (links.some((x) => x.value.trim() && !pickUrl(x.value.trim())) || bad) return toast('Incolla un link di Amazon (inizia con https://)', 3500);
+      const { error } = await sb.from('santa_participants').update({ wishlist: wish.value.trim() || null, wish_links: urls }).eq('event_id', ev.id).eq('user_id', S.me.id);
+      if (error) return toast(errMsg(error));
+      toast('Desideri salvati 🎁'); onSaved?.();
+    } }, 'Salva desideri'));
+}
 
 async function openSanta() {
   const box = h('div', {}, h('p', { class: 'muted center' }, 'Carico…'));
@@ -853,7 +876,7 @@ async function openSanta() {
 
 async function renderSanta(box) {
   const { data: ev } = await sb.from('santa_events').select('*').eq('circle_id', S.circleId).maybeSingle();
-  if (!ev) return box.replaceChildren(santaCreate(box));
+  if (!ev) return fill(box, santaCreate(box));
   const [{ data: parts }, { data: mine }] = await Promise.all([
     sb.from('santa_participants').select('*').eq('event_id', ev.id).order('joined_at'),
     sb.from('santa_assignments').select('receiver').eq('event_id', ev.id).maybeSingle(),
@@ -875,19 +898,11 @@ async function renderSanta(box) {
   } }, '📤 Invita gli amici a partecipare');
 
   if (ev.status === 'aperto') {
-    const wish = h('textarea', { class: 'input', maxlength: 500, placeholder: 'es. Libri gialli, cose per il caffè, niente calzini 😅' }, me?.wishlist || '');
-    wish.value = me?.wishlist || '';
     const part = me
       ? h('div', { class: 'stack' },
           h('div', { class: 'done-tag', style: 'display:inline-block' }, '✓ Partecipi'),
-          h('label', { style: 'margin-top:10px' }, '💭 Cosa ti piacerebbe ricevere?'),
-          h('p', { class: 'muted small', style: 'margin:0' }, 'Lo vedrà solo come suggerimento chi ti farà il regalo (e la cerchia). Facoltativo.'),
-          wish,
-          h('div', { class: 'row' },
-            h('button', { class: 'btn small', onclick: async () => {
-              const { error } = await sb.from('santa_participants').update({ wishlist: wish.value.trim() || null }).eq('event_id', ev.id).eq('user_id', S.me.id);
-              toast(error ? errMsg(error) : 'Desideri salvati 🎁');
-            } }, 'Salva desideri'), h('div', { class: 'spacer' }),
+          wishEditor(ev, me, () => renderSanta(box)),
+          h('div', { class: 'row' }, h('div', { class: 'spacer' }),
             h('button', { class: 'linkbtn small', onclick: async () => {
               if (!(await askConfirm('Non partecipi più?', 'Puoi sempre rientrare finché non si fa l\'estrazione.', 'Sì, mi ritiro'))) return openSanta();
               await sb.from('santa_participants').delete().eq('event_id', ev.id).eq('user_id', S.me.id); openSanta();
@@ -900,7 +915,7 @@ async function renderSanta(box) {
             toast('Sei dentro! 🎅'); renderSanta(box);
           } }, '🎅 Sì, partecipo!'));
     const n = (parts || []).length;
-    box.replaceChildren(h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎄'), h('b', {}, 'Iscrizioni aperte'),
+    fill(box, h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎄'), h('b', {}, 'Iscrizioni aperte'),
         h('div', { class: 'small' }, `${n} ${n === 1 ? 'partecipante' : 'partecipanti'} finora`)),
       info, note, avatars, h('div', { style: 'margin-top:14px' }, part),
       h('div', { style: 'margin-top:14px' }, inviteBtn),
@@ -923,19 +938,24 @@ async function renderSanta(box) {
   const bought = (parts || []).filter((p) => p.bought).length;
   const progress = h('p', { class: 'muted small center', style: 'margin:10px 0 0' }, `🎁 ${bought} su ${(parts || []).length} hanno già il regalo`);
   if (!me || !mine) {
-    box.replaceChildren(h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎅'), h('b', {}, 'Estrazione già fatta'),
+    fill(box, h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎅'), h('b', {}, 'Estrazione già fatta'),
       h('div', { class: 'small' }, 'Quest\'anno non partecipi, ma puoi fare il tifo!')), info, avatars, progress);
     return;
   }
   const rec = person(mine.receiver);
-  const recWish = (parts || []).find((p) => p.user_id === mine.receiver)?.wishlist;
+  const recP = (parts || []).find((p) => p.user_id === mine.receiver);
+  const recWish = recP?.wishlist;
+  const recLinks = (recP?.wish_links || []).filter((u) => AMZ_RE.test(u));
   const q = h('input', { class: 'input', placeholder: 'Cosa cerchi? es. tazza, libro, gioco…', value: '' });
   q.value = recWish ? recWish.split(/[,.\n]/)[0].trim().slice(0, 40) : '';
   const go = (term) => window.open(amazonLink(term, lo, hi), '_blank', 'noopener');
-  box.replaceChildren(
+  fill(box, 
     h('div', { class: 'santa-hero secret' }, h('div', { class: 'small' }, '🤫 Shhh… devi fare il regalo a'),
       avatarEl(rec, 'big'), h('div', { class: 'santa-name' }, rec.username)),
-    recWish ? h('div', { class: 'santa-note' }, h('b', {}, `💭 ${rec.username} desidera: `), recWish) : h('p', { class: 'muted small center' }, `${rec.username} non ha scritto desideri: vai d'istinto!`),
+    recWish ? h('div', { class: 'santa-note' }, h('b', {}, `💭 ${rec.username} desidera: `), recWish) : null,
+    recLinks.length ? h('div', { class: 'stack', style: 'margin-bottom:10px' }, recLinks.map((u, i) =>
+      h('a', { class: 'btn block amz', href: u, target: '_blank', rel: 'noopener noreferrer' }, `🎁 Desiderio ${i + 1}: vedi su Amazon`))) : null,
+    !recWish && !recLinks.length ? h('p', { class: 'muted small center' }, `${rec.username} non ha lasciato indizi (per ora): vai d'istinto!`) : null,
     info,
     h('div', { class: 'card', style: 'margin-top:14px;box-shadow:none;background:#fff7f0' },
       h('h3', {}, `🔎 Idee tra ${lo} € e ${hi} €`),
@@ -949,7 +969,10 @@ async function renderSanta(box) {
       if (error) return toast(errMsg(error));
       toast(me.bought ? 'Ok, ancora da comprare' : 'Grande! Regalo pronto 🎁'); renderSanta(box);
     } }, me.bought ? '✓ Regalo comprato (tocca per annullare)' : '🎁 Ho comprato il regalo'),
-    progress);
+    progress,
+    h('details', { class: 'card', style: 'margin-top:14px;box-shadow:none;background:#fff7f0' },
+      h('summary', { style: 'font-weight:700;cursor:pointer' }, '💭 I tuoi desideri (indizi per il tuo Babbo Natale)'),
+      wishEditor(ev, me, () => renderSanta(box))));
 }
 
 function santaCreate(box) {
