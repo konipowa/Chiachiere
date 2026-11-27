@@ -2,7 +2,7 @@
 // Regole: tocchi la tana in cima a una colonna, va in uno dei 5 posti e i topolini del suo colore
 // escono a mangiare solo i blocchetti raggiungibili dall'esterno. Se riempi i 5 posti senza poter mangiare, hai perso.
 
-import { MOSAICI } from './livelli-topolini.js?v=18';
+import { MOSAICI } from './livelli-topolini.js?v=19';
 
 const SLOTS = 5;
 
@@ -341,34 +341,55 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
   }
 
   // la passeggiata: camminano sul bordo e nei buchi già mangiati, mai sopra i blocchetti
-  const WALK = 150; // pixel al secondo su un telefono normale
+  const WALK = 175; // pixel al secondo su un telefono normale
   const layoutScale = () => Math.max(0.8, Math.min(1.4, layout.cw / 390));
   const cellCenter = (gy, gx) => [ox + (gx - 0.5) * cell, oy + (gy - 0.5) * cell]; // coordinate con bordo di 1 cella
+  // percorso ordinato: tutti entrano dallo stesso punto in basso e girano attorno al disegno in senso orario,
+  // in fila indiana; arrivati all'altezza giusta entrano nei buchi, mordono, poi riprendono il giro fino a casa.
+  function ringOf() {
+    const PH = H + 2, PW = W + 2, ex = Math.floor(PW / 2), ring = [];
+    for (let x = ex; x >= 0; x--) ring.push([PH - 1, x]);
+    for (let y = PH - 2; y >= 0; y--) ring.push([y, 0]);
+    for (let x = 1; x < PW; x++) ring.push([0, x]);
+    for (let y = 1; y < PH; y++) ring.push([y, PW - 1]);
+    for (let x = PW - 2; x > ex; x--) ring.push([PH - 1, x]);
+    return ring;
+  }
   function walkPath(sx, sy, target) {
-    const tyy = Math.floor(target / W) + 1, txx = (target % W) + 1;
-    const PH = H + 2, PW = W + 2;
+    const PH = H + 2, PW = W + 2, tyy = Math.floor(target / W) + 1, txx = (target % W) + 1;
+    const ring = ringOf(), ringIdx = new Map(ring.map(([y, x], i) => [y * PW + x, i]));
     const free = (y, x) => y >= 0 && x >= 0 && y < PH && x < PW && (y === 0 || x === 0 || y === PH - 1 || x === PW - 1 || G[y - 1][x - 1] === -1);
-    // si parte dal bordo in basso, nella colonna più vicina alla tana
-    let startX = Math.round((sx - ox) / cell + 0.5); startX = Math.max(0, Math.min(PW - 1, startX));
-    const prev = new Map(), q = [[PH - 1, startX]], key = (y, x) => y * PW + x;
-    prev.set(key(PH - 1, startX), -1);
-    let end = null;
+    // BFS dal blocchetto verso l'esterno: next = passo successivo verso il blocchetto
+    const next = new Map(), dist = new Map(), q = [];
+    for (const [dy, dx] of [[1, 0], [0, -1], [0, 1], [-1, 0]]) {
+      const y = tyy + dy, x = txx + dx;
+      if (free(y, x)) { const k = y * PW + x; if (!dist.has(k)) { dist.set(k, 0); next.set(k, -1); q.push([y, x]); } }
+    }
     while (q.length) {
-      const [y, x] = q.shift();
-      if (Math.abs(y - tyy) + Math.abs(x - txx) === 1) { end = [y, x]; break; }
-      for (const [dy, dx] of [[-1, 0], [0, -1], [0, 1], [1, 0]]) {
-        const ny = y + dy, nx = x + dx;
-        if (!free(ny, nx) || prev.has(key(ny, nx))) continue;
-        prev.set(key(ny, nx), key(y, x)); q.push([ny, nx]);
+      const [y, x] = q.shift(), k = y * PW + x;
+      for (const [dy, dx] of [[1, 0], [0, -1], [0, 1], [-1, 0]]) {
+        const ny = y + dy, nx = x + dx, nk = ny * PW + nx;
+        if (!free(ny, nx) || dist.has(nk)) continue;
+        dist.set(nk, dist.get(k) + 1); next.set(nk, k); q.push([ny, nx]);
       }
     }
-    const pts = [];
-    if (end) { let k = key(end[0], end[1]); while (k !== -1) { pts.push(cellCenter(Math.floor(k / PW), k % PW)); k = prev.get(k); } pts.reverse(); }
-    const [bx, by] = cellCenter(PH - 1, startX);
-    const tgt = cellCenter(tyy, txx);
-    const last = pts.length ? pts[pts.length - 1] : [bx, by];
-    // mezzo passo verso il blocchetto per "morderlo"
-    return [[sx, sy], [bx, by + cell * 0.2], ...pts, [(last[0] + tgt[0]) / 2, (last[1] + tgt[1]) / 2]];
+    // da quale punto del giro conviene entrare
+    let best = 0, bestScore = 1e9;
+    ring.forEach(([y, x], i) => { const d = dist.get(y * PW + x); if (d !== undefined && i + d * 1.5 < bestScore) { bestScore = i + d * 1.5; best = i; } });
+    const c = (y, x) => cellCenter(y, x);
+    const tgt = c(tyy, txx);
+    const inner = [];
+    let k = ring[best][0] * PW + ring[best][1];
+    while (k !== -1 && k !== undefined) { const nk = next.get(k); if (nk === undefined) break; if (nk !== -1) inner.push(c(Math.floor(nk / PW), nk % PW)); k = nk; }
+    const lastP = inner.length ? inner[inner.length - 1] : c(...ring[best]);
+    const bite = [(lastP[0] + tgt[0]) / 2, (lastP[1] + tgt[1]) / 2];
+    const goRing = ring.slice(0, best + 1).map(([y, x]) => c(y, x));
+    const backRing = ring.slice(best).map(([y, x]) => c(y, x)).concat([c(...ring[0])]);
+    const door = [c(...ring[0])[0], c(...ring[0])[1] + cell * 0.9];
+    return {
+      go: [[sx, sy], door, ...goRing, ...inner, bite],
+      back: [bite, ...inner.slice().reverse(), ...backRing, door, [sx, sy]],
+    };
   }
   function pathLens(p) {
     const acc = [0];
@@ -393,8 +414,8 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
         const target = pickTarget(s.color, sx);
         if (target >= 0) {
           eating.set(target, (eating.get(target) || 0) + 1);
-          const path = walkPath(sx, sy, target);
-          mice.push({ slot: si, color: s.color, target, path, lens: pathLens(path), d: 0, phase: 'go', wait: 0 });
+          const route = walkPath(sx, sy, target);
+          mice.push({ slot: si, color: s.color, target, route, path: route.go, lens: pathLens(route.go), d: 0, phase: 'go', wait: 0 });
           s.left--; s.inFlight++; s.cool = 0.16;
         }
       }
@@ -402,7 +423,7 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     // topolini in passeggiata
     for (const m of mice) {
       if (m.phase === 'go' || m.phase === 'back') {
-        m.d += WALK * layoutScale() * (m.phase === 'back' ? 1.3 : 1) * dt;
+        m.d += WALK * layoutScale() * dt;
         if (m.d >= m.lens.total) {
           m.d = m.lens.total;
           if (m.phase === 'go') {
@@ -422,7 +443,7 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
         }
       } else if (m.phase === 'eat') {
         m.wait += dt;
-        if (m.wait >= 0.22) { m.phase = 'back'; m.path = m.path.slice().reverse(); m.lens = pathLens(m.path); m.d = 0; }
+        if (m.wait >= 0.22) { m.phase = 'back'; m.path = m.route.back; m.lens = pathLens(m.path); m.d = 0; }
       }
     }
     mice = mice.filter((m) => m.phase !== 'done');

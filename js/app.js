@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '18';
+const VERSIONE = '19';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -1105,7 +1105,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=18');
+  const { startTopolini } = await import('./topolini.js?v=19');
   startTopolini({
     level,
     onWin: async (next) => {
