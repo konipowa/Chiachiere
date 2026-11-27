@@ -76,7 +76,9 @@ window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); S.in
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 
 (function readInvite() {
-  const code = new URLSearchParams(location.search).get('invito');
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('apri')) localStorage.setItem('apri', qs.get('apri'));
+  const code = qs.get('invito');
   if (code) {
     localStorage.setItem('invito', code.toUpperCase());
     history.replaceState(null, '', location.pathname);
@@ -189,7 +191,9 @@ async function afterLogin() {
   await loadCircles();
   if (!S.circles.length) return renderNoCircle();
   await openCircle(localStorage.getItem('cerchia'));
-  maybeShowInstall();
+  if (localStorage.getItem('apri') === 'santa') {
+    localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
+  } else maybeShowInstall();
 }
 
 async function loadCircles() {
@@ -737,6 +741,10 @@ async function tabGiochi(root) {
 function tabUtilita(root) {
   const polls = h('div', { id: 'polls' }, h('p', { class: 'muted small' }, 'Carico…'));
   root.append(
+    h('div', { class: 'card santa-card', onclick: openSanta }, h('div', { class: 'santa-card-ico' }, '🎅'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Babbo Natale segreto'),
+        h('div', { class: 'small' }, 'Estrazione segreta, budget e idee regalo su Amazon.')),
+      h('span', { class: 'btn small white' }, 'Apri')),
     h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Sondaggi'),
       h('button', { class: 'btn small', onclick: newPoll }, '➕ Nuovo')),
       h('p', { class: 'muted small', style: 'margin:4px 0 8px' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), polls),
@@ -830,6 +838,152 @@ function chiPaga() {
   const share = h('button', { class: 'btn ghost block', style: 'margin-top:10px;display:none' }, '💬 Manda il verdetto in chat');
   openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '🎲 Chi paga?'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
     h('p', { class: 'muted small' }, 'Tocca i nomi per togliere chi non c\'è.'), list, stage, go, share));
+}
+
+/* ============ BABBO NATALE SEGRETO ============ */
+const amazonLink = (q, lo, hi) => `https://www.amazon.it/s?k=${encodeURIComponent(q || 'idee regalo')}&rh=p_36%3A${lo * 100}-${hi * 100}`;
+const daysTo = (d) => Math.ceil((Date.parse(d + 'T12:00:00') - Date.now()) / 864e5);
+
+async function openSanta() {
+  const box = h('div', {}, h('p', { class: 'muted center' }, 'Carico…'));
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '🎅 Babbo Natale segreto'),
+    h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), box));
+  await renderSanta(box);
+}
+
+async function renderSanta(box) {
+  const { data: ev } = await sb.from('santa_events').select('*').eq('circle_id', S.circleId).maybeSingle();
+  if (!ev) return box.replaceChildren(santaCreate(box));
+  const [{ data: parts }, { data: mine }] = await Promise.all([
+    sb.from('santa_participants').select('*').eq('event_id', ev.id).order('joined_at'),
+    sb.from('santa_assignments').select('receiver').eq('event_id', ev.id).maybeSingle(),
+  ]);
+  const me = (parts || []).find((p) => p.user_id === S.me.id);
+  const owner = ev.owner === S.me.id;
+  const lo = Math.max(1, Math.round(ev.budget * 2 / 3)), hi = ev.budget;
+  const info = h('div', { class: 'santa-info' },
+    h('span', { class: 'pill' }, `💶 Budget ${ev.budget} €`),
+    ev.exchange_date ? h('span', { class: 'pill' }, `📅 ${new Date(ev.exchange_date + 'T12:00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}${daysTo(ev.exchange_date) >= 0 ? ` · tra ${daysTo(ev.exchange_date)} giorni` : ''}`) : null,
+    h('span', { class: 'pill' }, `👑 ${person(ev.owner).username}`));
+  const note = ev.note ? h('p', { class: 'santa-note' }, ev.note) : null;
+  const avatars = h('div', { class: 'row wrap', style: 'gap:6px' }, (parts || []).map((p) => h('div', { class: 'santa-who' + (p.bought ? ' done' : '') }, avatarEl(person(p.user_id), 'sm'), person(p.user_id).username, p.bought && ev.status === 'estratto' ? ' 🎁' : '')));
+  const inviteBtn = h('button', { class: 'btn ghost block', onclick: async () => {
+    const link = inviteLink(circle().invite_code) + '&apri=santa';
+    const text = `🎅 Facciamo il Babbo Natale segreto! Budget ${ev.budget} €. Entra e dimmi se partecipi:`;
+    if (navigator.share) { try { await navigator.share({ title: 'Babbo Natale segreto', text, url: link }); } catch {} }
+    else { await navigator.clipboard.writeText(`${text} ${link}`); toast('Link copiato! Incollalo su WhatsApp 👍'); }
+  } }, '📤 Invita gli amici a partecipare');
+
+  if (ev.status === 'aperto') {
+    const wish = h('textarea', { class: 'input', maxlength: 500, placeholder: 'es. Libri gialli, cose per il caffè, niente calzini 😅' }, me?.wishlist || '');
+    wish.value = me?.wishlist || '';
+    const part = me
+      ? h('div', { class: 'stack' },
+          h('div', { class: 'done-tag', style: 'display:inline-block' }, '✓ Partecipi'),
+          h('label', { style: 'margin-top:10px' }, '💭 Cosa ti piacerebbe ricevere?'),
+          h('p', { class: 'muted small', style: 'margin:0' }, 'Lo vedrà solo come suggerimento chi ti farà il regalo (e la cerchia). Facoltativo.'),
+          wish,
+          h('div', { class: 'row' },
+            h('button', { class: 'btn small', onclick: async () => {
+              const { error } = await sb.from('santa_participants').update({ wishlist: wish.value.trim() || null }).eq('event_id', ev.id).eq('user_id', S.me.id);
+              toast(error ? errMsg(error) : 'Desideri salvati 🎁');
+            } }, 'Salva desideri'), h('div', { class: 'spacer' }),
+            h('button', { class: 'linkbtn small', onclick: async () => {
+              if (!(await askConfirm('Non partecipi più?', 'Puoi sempre rientrare finché non si fa l\'estrazione.', 'Sì, mi ritiro'))) return openSanta();
+              await sb.from('santa_participants').delete().eq('event_id', ev.id).eq('user_id', S.me.id); openSanta();
+            } }, 'Mi ritiro')))
+      : h('div', { class: 'card center', style: 'background:#fff7f0;box-shadow:none' },
+          h('p', { style: 'font-weight:700;font-size:1.1rem' }, 'Partecipi anche tu? 🎄'),
+          h('button', { class: 'btn block', onclick: async () => {
+            const { error } = await sb.from('santa_participants').insert({ event_id: ev.id, user_id: S.me.id });
+            if (error) return toast(errMsg(error));
+            toast('Sei dentro! 🎅'); renderSanta(box);
+          } }, '🎅 Sì, partecipo!'));
+    const n = (parts || []).length;
+    box.replaceChildren(h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎄'), h('b', {}, 'Iscrizioni aperte'),
+        h('div', { class: 'small' }, `${n} ${n === 1 ? 'partecipante' : 'partecipanti'} finora`)),
+      info, note, avatars, h('div', { style: 'margin-top:14px' }, part),
+      h('div', { style: 'margin-top:14px' }, inviteBtn),
+      owner ? h('div', { class: 'stack', style: 'margin-top:14px' },
+        h('button', { class: 'btn block', disabled: n < 3, onclick: async () => {
+          if (!(await askConfirm('🎲 Fare l\'estrazione?', `Partecipano in ${n}. Dopo non si potrà più entrare né uscire.`, 'Estrai!'))) return openSanta();
+          const { error } = await sb.rpc('santa_draw', { e: ev.id });
+          if (error) { toast(errMsg(error)); return openSanta(); }
+          sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: '🎅 Estrazione fatta! Andate in Extra → Utilità → Babbo Natale segreto per scoprire a chi fate il regalo 🤫' });
+          toast('Estrazione fatta! 🎉'); openSanta();
+        } }, n < 3 ? `🎲 Estrai (servono almeno 3 persone)` : `🎲 Estrai gli abbinamenti (${n})`),
+        h('button', { class: 'linkbtn small', onclick: async () => {
+          if (!(await askConfirm('Annullare il Babbo Natale segreto?', 'Si cancellano iscrizioni e desideri.', 'Sì, annulla'))) return openSanta();
+          await sb.from('santa_events').delete().eq('id', ev.id); toast('Evento annullato'); openSanta();
+        } }, 'Annulla l\'evento')) : null);
+    return;
+  }
+
+  // ESTRAZIONE FATTA
+  const bought = (parts || []).filter((p) => p.bought).length;
+  const progress = h('p', { class: 'muted small center', style: 'margin:10px 0 0' }, `🎁 ${bought} su ${(parts || []).length} hanno già il regalo`);
+  if (!me || !mine) {
+    box.replaceChildren(h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎅'), h('b', {}, 'Estrazione già fatta'),
+      h('div', { class: 'small' }, 'Quest\'anno non partecipi, ma puoi fare il tifo!')), info, avatars, progress);
+    return;
+  }
+  const rec = person(mine.receiver);
+  const recWish = (parts || []).find((p) => p.user_id === mine.receiver)?.wishlist;
+  const q = h('input', { class: 'input', placeholder: 'Cosa cerchi? es. tazza, libro, gioco…', value: '' });
+  q.value = recWish ? recWish.split(/[,.\n]/)[0].trim().slice(0, 40) : '';
+  const go = (term) => window.open(amazonLink(term, lo, hi), '_blank', 'noopener');
+  box.replaceChildren(
+    h('div', { class: 'santa-hero secret' }, h('div', { class: 'small' }, '🤫 Shhh… devi fare il regalo a'),
+      avatarEl(rec, 'big'), h('div', { class: 'santa-name' }, rec.username)),
+    recWish ? h('div', { class: 'santa-note' }, h('b', {}, `💭 ${rec.username} desidera: `), recWish) : h('p', { class: 'muted small center' }, `${rec.username} non ha scritto desideri: vai d'istinto!`),
+    info,
+    h('div', { class: 'card', style: 'margin-top:14px;box-shadow:none;background:#fff7f0' },
+      h('h3', {}, `🔎 Idee tra ${lo} € e ${hi} €`),
+      h('form', { class: 'row', onsubmit: (e) => { e.preventDefault(); go(q.value.trim()); } }, q, h('button', { class: 'btn small' }, 'Cerca')),
+      h('div', { class: 'row wrap', style: 'margin-top:10px;gap:6px' },
+        ['idee regalo', 'regalo per lei', 'regalo per lui', 'gadget divertenti', 'gioco da tavolo', 'kit caffè'].map((t) =>
+          h('button', { class: 'chip on', type: 'button', onclick: () => go(t) }, t))),
+      h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Si apre Amazon con i prezzi già filtrati.')),
+    h('button', { class: 'btn block' + (me.bought ? ' ghost' : ''), style: 'margin-top:12px', onclick: async () => {
+      const { error } = await sb.from('santa_participants').update({ bought: !me.bought }).eq('event_id', ev.id).eq('user_id', S.me.id);
+      if (error) return toast(errMsg(error));
+      toast(me.bought ? 'Ok, ancora da comprare' : 'Grande! Regalo pronto 🎁'); renderSanta(box);
+    } }, me.bought ? '✓ Regalo comprato (tocca per annullare)' : '🎁 Ho comprato il regalo'),
+    progress);
+}
+
+function santaCreate(box) {
+  let budget = 30;
+  const budgets = h('div', { class: 'row wrap', style: 'gap:6px' }, [10, 20, 30, 50].map((b) => {
+    const el = h('button', { type: 'button', class: 'chip' + (b === budget ? ' on' : ''), onclick: () => {
+      budget = b; custom.value = ''; budgets.querySelectorAll('.chip').forEach((x) => x.classList.remove('on')); el.classList.add('on');
+    } }, `${b} €`);
+    return el;
+  }));
+  const custom = h('input', { class: 'input', type: 'number', min: 5, max: 500, placeholder: 'Altro importo €', style: 'margin-top:8px',
+    oninput: () => { budgets.querySelectorAll('.chip').forEach((x) => x.classList.remove('on')); budget = +custom.value || 0; } });
+  const date = h('input', { class: 'input', type: 'date', value: `${new Date().getFullYear()}-12-24` });
+  const note = h('input', { class: 'input', maxlength: 300, placeholder: 'es. Scambio dei regali alla cena di Natale 🎄' });
+  const err = h('div', { class: 'error' });
+  return h('div', {},
+    h('div', { class: 'santa-hero' }, h('div', { class: 'santa-big' }, '🎅🎁'),
+      h('b', {}, 'Come funziona'),
+      h('div', { class: 'small', style: 'text-align:left;margin-top:6px' },
+        '1. Crei l\'evento e scegli il budget', h('br'), '2. Gli amici della cerchia dicono se partecipano', h('br'),
+        '3. Fai l\'estrazione: ognuno scopre in segreto a chi fare il regalo', h('br'), '4. L\'app ti suggerisce idee su Amazon nel budget')),
+    h('form', { style: 'margin-top:14px', onsubmit: async (e) => {
+      e.preventDefault(); err.textContent = '';
+      if (budget < 5 || budget > 500) return (err.textContent = 'Scegli un budget tra 5 e 500 €');
+      const { data, error } = await sb.from('santa_events').insert({ circle_id: S.circleId, owner: S.me.id, budget, exchange_date: date.value || null, note: note.value.trim() || null }).select('id').single();
+      if (error) return (err.textContent = errMsg(error));
+      await sb.from('santa_participants').insert({ event_id: data.id, user_id: S.me.id });
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🎅 Ho organizzato il Babbo Natale segreto! Budget ${budget} €. Partecipate? Extra → Utilità → Babbo Natale segreto` });
+      toast('Evento creato! 🎄'); renderSanta(box);
+    } },
+      h('div', { class: 'field' }, h('label', {}, '💶 Budget a testa'), budgets, custom),
+      h('div', { class: 'field' }, h('label', {}, '📅 Giorno dello scambio'), date),
+      h('div', { class: 'field' }, h('label', {}, '📝 Nota (facoltativa)'), note),
+      err, h('button', { class: 'btn block' }, '🎄 Crea il Babbo Natale segreto')));
 }
 
 /* --- Posta delle proposte --- */

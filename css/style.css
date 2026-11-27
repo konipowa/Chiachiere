@@ -324,3 +324,20 @@ textarea.input { border-radius: 22px; }
 .menu-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; border: none; background: none; font-size: 1.1rem; font-weight: 700; cursor: pointer; text-align: left; }
 .menu-btn + .menu-btn { border-top: 1px solid #f3e6dc; }
 .menu-btn.danger { color: #d9534f; }
+
+/* Babbo Natale segreto */
+.santa-card { display: flex; align-items: center; gap: 14px; cursor: pointer; color: #fff;
+  background: radial-gradient(120% 100% at 100% 0%, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 50%), linear-gradient(135deg, #d63a3a 0%, #b81f3c 60%, #8e1838 100%); }
+.santa-card div.small { color: rgba(255,255,255,.9); }
+.santa-card-ico { font-size: 38px; width: 64px; height: 64px; border-radius: 22px; display: grid; place-items: center; background: rgba(255,255,255,.18); flex: 0 0 auto; }
+.santa-hero { text-align: center; border-radius: 28px; padding: 18px; color: #fff; margin: 12px 0;
+  background: linear-gradient(135deg, #d63a3a 0%, #b81f3c 60%, #2f7a4f 140%); box-shadow: 0 10px 30px rgba(180, 30, 50, .3); }
+.santa-hero.secret { background: linear-gradient(135deg, #1f5f3d 0%, #2f7a4f 55%, #b81f3c 140%); }
+.santa-hero .avatar.big { margin: 12px auto 6px; }
+.santa-big { font-size: 46px; line-height: 1.1; margin-bottom: 4px; }
+.santa-name { font-size: 1.7rem; font-weight: 700; }
+.santa-info { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.pill { background: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: .9rem; box-shadow: var(--shadow-sm); }
+.santa-note { background: #fff; border-radius: 20px; padding: 12px 14px; box-shadow: var(--shadow-sm); margin: 6px 0 10px; }
+.santa-who { display: inline-flex; align-items: center; gap: 6px; background: #fff; border-radius: 999px; padding: 4px 12px 4px 4px; font-weight: 700; font-size: .9rem; box-shadow: var(--shadow-sm); }
+.santa-who .avatar.sm { width: 26px; height: 26px; font-size: 14px; box-shadow: none; }
