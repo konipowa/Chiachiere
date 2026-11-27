@@ -340,38 +340,89 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     return best;
   }
 
+  // la passeggiata: camminano sul bordo e nei buchi già mangiati, mai sopra i blocchetti
+  const WALK = 150; // pixel al secondo su un telefono normale
+  const layoutScale = () => Math.max(0.8, Math.min(1.4, layout.cw / 390));
+  const cellCenter = (gy, gx) => [ox + (gx - 0.5) * cell, oy + (gy - 0.5) * cell]; // coordinate con bordo di 1 cella
+  function walkPath(sx, sy, target) {
+    const tyy = Math.floor(target / W) + 1, txx = (target % W) + 1;
+    const PH = H + 2, PW = W + 2;
+    const free = (y, x) => y >= 0 && x >= 0 && y < PH && x < PW && (y === 0 || x === 0 || y === PH - 1 || x === PW - 1 || G[y - 1][x - 1] === -1);
+    // si parte dal bordo in basso, nella colonna più vicina alla tana
+    let startX = Math.round((sx - ox) / cell + 0.5); startX = Math.max(0, Math.min(PW - 1, startX));
+    const prev = new Map(), q = [[PH - 1, startX]], key = (y, x) => y * PW + x;
+    prev.set(key(PH - 1, startX), -1);
+    let end = null;
+    while (q.length) {
+      const [y, x] = q.shift();
+      if (Math.abs(y - tyy) + Math.abs(x - txx) === 1) { end = [y, x]; break; }
+      for (const [dy, dx] of [[-1, 0], [0, -1], [0, 1], [1, 0]]) {
+        const ny = y + dy, nx = x + dx;
+        if (!free(ny, nx) || prev.has(key(ny, nx))) continue;
+        prev.set(key(ny, nx), key(y, x)); q.push([ny, nx]);
+      }
+    }
+    const pts = [];
+    if (end) { let k = key(end[0], end[1]); while (k !== -1) { pts.push(cellCenter(Math.floor(k / PW), k % PW)); k = prev.get(k); } pts.reverse(); }
+    const [bx, by] = cellCenter(PH - 1, startX);
+    const tgt = cellCenter(tyy, txx);
+    const last = pts.length ? pts[pts.length - 1] : [bx, by];
+    // mezzo passo verso il blocchetto per "morderlo"
+    return [[sx, sy], [bx, by + cell * 0.2], ...pts, [(last[0] + tgt[0]) / 2, (last[1] + tgt[1]) / 2]];
+  }
+  function pathLens(p) {
+    const acc = [0];
+    for (let i = 1; i < p.length; i++) acc.push(acc[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]));
+    return { acc, total: acc[acc.length - 1] || 0.001 };
+  }
+  function posOnPath(m) {
+    const { acc } = m.lens, p = m.path;
+    let i = 1; while (i < acc.length - 1 && acc[i] < m.d) i++;
+    const seg = acc[i] - acc[i - 1] || 1, k = Math.max(0, Math.min(1, (m.d - acc[i - 1]) / seg));
+    const x = p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k, y = p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k;
+    return [x, y, p[i][0] - p[i - 1][0] || (m.phase === 'back' ? 1 : -1)];
+  }
+
   function step(dt, now) {
     // ogni tana manda fuori i suoi topolini
     slots.forEach((s, si) => {
       if (!s) return;
       s.cool -= dt;
-      if (s.left > 0 && s.cool <= 0 && now - s.born > 250) {
-        const sx = slotX(si), sy = layout.slotY;
+      if (s.left > 0 && s.cool <= 0 && now - s.born > 300) {
+        const sx = slotX(si), sy = layout.slotY - layout.slotW * 0.3;
         const target = pickTarget(s.color, sx);
         if (target >= 0) {
           eating.set(target, (eating.get(target) || 0) + 1);
-          const tx = ox + ((target % W) + 0.5) * cell, ty = oy + (Math.floor(target / W) + 0.5) * cell;
-          const dist = Math.hypot(tx - sx, ty - sy);
-          mice.push({ slot: si, color: s.color, target, x0: sx, y0: sy, x1: tx, y1: ty, t: 0, dur: Math.min(0.8, Math.max(0.3, dist / 650)), phase: 'go' });
-          s.left--; s.inFlight++; s.cool = 0.085;
+          const path = walkPath(sx, sy, target);
+          mice.push({ slot: si, color: s.color, target, path, lens: pathLens(path), d: 0, phase: 'go', wait: 0 });
+          s.left--; s.inFlight++; s.cool = 0.16;
         }
       }
     });
-    // topolini in viaggio
+    // topolini in passeggiata
     for (const m of mice) {
-      m.t += dt;
-      if (m.phase === 'go' && m.t >= m.dur) {
-        m.phase = 'eat'; m.t = 0;
-        const y = Math.floor(m.target / W), x = m.target % W;
-        const col = colors[G[y][x]];
-        HP[y][x]--; leftBlocks--;
-        const n = (eating.get(m.target) || 1) - 1; if (n > 0) eating.set(m.target, n); else eating.delete(m.target);
-        const gone = HP[y][x] <= 0;
-        if (gone) { G[y][x] = -1; exposed = exposedSet(G); } else m.hard = true;
-        for (let k = 0; k < (gone ? 6 : 2); k++) particles.push({ x: m.x1, y: m.y1, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 160 - 40, life: 0.6, col, r: cell * (0.08 + Math.random() * 0.08) });
-      } else if (m.phase === 'eat' && m.t >= 0.18) {
-        m.phase = 'done';
-        const s = slots[m.slot]; if (s) s.inFlight--;
+      if (m.phase === 'go' || m.phase === 'back') {
+        m.d += WALK * layoutScale() * (m.phase === 'back' ? 1.3 : 1) * dt;
+        if (m.d >= m.lens.total) {
+          m.d = m.lens.total;
+          if (m.phase === 'go') {
+            m.phase = 'eat'; m.wait = 0;
+            const y = Math.floor(m.target / W), x = m.target % W;
+            const col = colors[G[y][x]];
+            HP[y][x]--; leftBlocks--; m.carry = col;
+            const n = (eating.get(m.target) || 1) - 1; if (n > 0) eating.set(m.target, n); else eating.delete(m.target);
+            const gone = HP[y][x] <= 0;
+            if (gone) { G[y][x] = -1; exposed = exposedSet(G); }
+            const [px, py] = m.path[m.path.length - 1];
+            for (let k = 0; k < (gone ? 5 : 2); k++) particles.push({ x: px, y: py, vx: (Math.random() - 0.5) * 120, vy: -Math.random() * 120 - 30, life: 0.5, col, r: cell * (0.07 + Math.random() * 0.07) });
+          } else {
+            m.phase = 'done';
+            const s = slots[m.slot]; if (s) s.inFlight--;
+          }
+        }
+      } else if (m.phase === 'eat') {
+        m.wait += dt;
+        if (m.wait >= 0.22) { m.phase = 'back'; m.path = m.path.slice().reverse(); m.lens = pathLens(m.path); m.d = 0; }
       }
     }
     mice = mice.filter((m) => m.phase !== 'done');
@@ -440,11 +491,12 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     });
     // topolini
     for (const m of mice) {
-      if (m.phase === 'go') {
-        const k = m.t / m.dur, e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        const x = m.x0 + (m.x1 - m.x0) * e, y = m.y0 + (m.y1 - m.y0) * e - Math.sin(k * Math.PI) * 20;
-        drawMouse(ctx, x, y, Math.max(16, cell * 0.9), colors[m.color], now / 1000, m.x1 < m.x0);
-      } else drawMouse(ctx, m.x1, m.y1, Math.max(16, cell * 0.9) * (1 - m.t * 3), colors[m.color], now / 1000);
+      const [x, y, dx] = posOnPath(m);
+      const sz = Math.max(16, Math.min(26, cell * 1.05));
+      if (m.phase === 'back' && m.carry) {
+        drawMouse(ctx, x, y, sz, colors[m.color], now / 1000 + m.slot, dx < 0);
+        const b = sz * 0.42; drawBlock(ctx, x - b / 2 + (dx < 0 ? sz * 0.08 : -sz * 0.08), y - sz * 0.62, b, m.carry);
+      } else drawMouse(ctx, x, y, sz * (m.phase === 'eat' ? 1 + Math.sin(m.wait * 40) * 0.06 : 1), colors[m.color], now / 1000 + m.slot, dx < 0);
     }
     if (hint && now - hint.t < 1800) {
       ctx.globalAlpha = Math.min(1, (1800 - (now - hint.t)) / 300);
