@@ -77,9 +77,18 @@ function exposedSet(grid) {
   return exp;
 }
 
-function makeTanks(grid, nColors, level, r) {
+// difficoltà extra: tane legate (dal 20) e blocchi duri (dal 30)
+function features(level) {
+  return {
+    links: level < 20 ? 0 : level < 60 ? 1 : level < 120 ? 2 : 3,
+    hard: level < 30 ? 0 : Math.min(4, 1 + Math.floor((level - 30) / 35)),
+    hpMax: level < 30 ? 0 : Math.min(50, 10 + 5 * Math.floor((level - 30) / 15)),
+  };
+}
+
+function makeTanks(grid, hp, nColors, level, r) {
   const counts = Array(nColors).fill(0);
-  grid.forEach((row) => row.forEach((c) => c >= 0 && counts[c]++));
+  grid.forEach((row, y) => row.forEach((c, x) => c >= 0 && (counts[c] += hp[y][x])));
   const sizes = level < 4 ? [10] : level < 12 ? [10, 20] : [10, 20, 30];
   const tanks = [];
   counts.forEach((n, color) => {
@@ -93,31 +102,51 @@ function makeTanks(grid, nColors, level, r) {
   return tanks;
 }
 
+// la tana in cima alla colonna li è prendibile? (se è legata, serve anche la compagna in cima)
+function partnerLane(lanes, li) {
+  const t = lanes[li][0];
+  if (!t || t.link == null) return -1;
+  return lanes.findIndex((l, j) => j !== li && l[0] && l[0].link === t.link);
+}
+
 // controllo che il livello sia risolvibile (giocatore "ragionevole")
-function solvable(grid0, lanes0, slots) {
-  const grid = grid0.map((r) => r.slice()), W = grid[0].length;
+function solvable(grid0, hp0, lanes0, slots) {
+  const grid = grid0.map((r) => r.slice()), hp = hp0.map((r) => r.slice()), W = grid[0].length;
   const lanes = lanes0.map((l) => l.map((t) => ({ ...t })));
   const active = [];
-  let left = grid.flat().filter((c) => c >= 0).length;
-  for (let guard = 0; guard < 2000; guard++) {
+  let left = hp.flat().reduce((a, b) => a + b, 0);
+  for (let guard = 0; guard < 4000; guard++) {
     let moved = true;
     while (moved) {
       moved = false;
       for (const t of active) {
         if (!t.count) continue;
         const exp = exposedSet(grid);
-        for (const i of exp) { const y = Math.floor(i / W), x = i % W; if (grid[y][x] === t.color) { grid[y][x] = -1; t.count--; left--; moved = true; break; } }
+        for (const i of exp) {
+          const y = Math.floor(i / W), x = i % W;
+          if (grid[y][x] !== t.color) continue;
+          const bite = Math.min(t.count, hp[y][x]);
+          hp[y][x] -= bite; t.count -= bite; left -= bite; moved = true;
+          if (!hp[y][x]) grid[y][x] = -1;
+          break;
+        }
       }
       for (let i = active.length - 1; i >= 0; i--) if (!active[i].count) active.splice(i, 1);
     }
     if (!left) return true;
-    if (active.length >= slots) return false;
     const exp = exposedSet(grid);
     const expColors = new Set([...exp].map((i) => grid[Math.floor(i / W)][i % W]));
-    let pick = lanes.findIndex((l) => l.length && expColors.has(l[0].color));
-    if (pick < 0) pick = lanes.findIndex((l) => l.length);
-    if (pick < 0) return false;
-    active.push(lanes[pick].shift());
+    const options = lanes.map((l, li) => {
+      if (!l.length) return null;
+      if (l[0].link == null) return active.length < slots ? { li, pj: -1, good: expColors.has(l[0].color) } : null;
+      const pj = partnerLane(lanes, li);
+      if (pj < 0 || active.length + 2 > slots) return null;
+      return { li, pj, good: expColors.has(l[0].color) || expColors.has(lanes[pj][0].color) };
+    }).filter(Boolean);
+    if (!options.length) return false;
+    const o = options.find((x) => x.good) || options[0];
+    const t = lanes[o.li].shift(); active.push(t);
+    if (o.pj >= 0) active.push(lanes[o.pj].shift());
   }
   return false;
 }
@@ -125,20 +154,33 @@ function solvable(grid0, lanes0, slots) {
 function buildLevel(level) {
   const d = designFor(level);
   const nLanes = 3;
-  for (let attempt = 0; attempt < 80; attempt++) {
+  const base = d.grid.map((row) => row.map((c) => (c >= 0 ? 1 : 0)));
+  const tryBuild = (attempt, f) => {
     const r = rng(level * 1000 + attempt);
-    const tanks = makeTanks(d.grid, d.colors.length, level, r);
+    const hp = base.map((row) => row.slice());
+    const cells = [];
+    d.grid.forEach((row, y) => row.forEach((c, x) => c >= 0 && cells.push([y, x])));
+    const steps = [5, 10, 15, 20, 30, 40, 50].filter((v) => v <= f.hpMax);
+    for (let k = 0; k < f.hard && cells.length > 20; k++) {
+      const [y, x] = cells.splice(Math.floor(r() * cells.length), 1)[0];
+      hp[y][x] = steps[Math.floor(r() * steps.length)];
+    }
+    const tanks = makeTanks(d.grid, hp, d.colors.length, level, r);
     for (let i = tanks.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [tanks[i], tanks[j]] = [tanks[j], tanks[i]]; }
     const lanes = Array.from({ length: nLanes }, () => []);
     tanks.forEach((t, i) => lanes[i % nLanes].push(t));
-    if (solvable(d.grid, lanes, SLOTS)) return { ...d, lanes };
-  }
-  // ripiego: ordina dall'esterno verso l'interno (sempre risolvibile)
-  const r = rng(level);
-  const tanks = makeTanks(d.grid, d.colors.length, level, r);
-  const lanes = Array.from({ length: nLanes }, () => []);
-  tanks.forEach((t, i) => lanes[i % nLanes].push(t));
-  return { ...d, lanes };
+    for (let k = 0, tries = 0; k < f.links && tries < 40; tries++) {
+      const li = Math.floor(r() * (nLanes - 1)), j = Math.floor(r() * Math.max(1, Math.min(lanes[li].length, lanes[li + 1].length)));
+      const a = lanes[li][j], b = lanes[li + 1][j];
+      if (!a || !b || a.link != null || b.link != null || a.color === b.color) continue;
+      a.link = b.link = k++;
+    }
+    return solvable(d.grid, hp, lanes, SLOTS) ? { ...d, hp, lanes, feats: { links: lanes.flat().some((t) => t.link != null), hard: hp.flat().some((v) => v > 1) } } : null;
+  };
+  const f = features(level);
+  for (let attempt = 0; attempt < 80; attempt++) { const L = tryBuild(attempt, f); if (L) return L; }
+  for (let attempt = 80; attempt < 200; attempt++) { const L = tryBuild(attempt, { links: 0, hard: 0, hpMax: 0 }); if (L) return L; }
+  return tryBuild(999, { links: 0, hard: 0, hpMax: 0 }) || { ...d, hp: base, lanes: [makeTanks(d.grid, base, d.colors.length, level, rng(level)), [], []], feats: {} };
 }
 
 /* ---------------- DISEGNO ---------------- */
@@ -218,19 +260,27 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
   root.querySelector('.topo-x').onclick = close;
   root.querySelector('.topo-restart').onclick = () => load(level);
 
-  let G, W, H, colors, lanes, slots, mice, particles, eating, exposed, totalBlocks, leftBlocks, cell, ox, oy, layout, running, over, stuckTimer, raf, last;
+  let G, HP, W, H, colors, lanes, slots, mice, particles, eating, exposed, totalBlocks, leftBlocks, cell, ox, oy, layout, running, over, stuckTimer, raf, last;
 
   function load(lv) {
     level = lv; modal.hidden = true; over = false; stuckTimer = 0;
     const L = buildLevel(lv);
-    G = L.grid.map((r) => r.slice()); H = G.length; W = G[0].length; colors = L.colors;
+    G = L.grid.map((r) => r.slice()); HP = L.hp.map((r) => r.slice()); H = G.length; W = G[0].length; colors = L.colors;
     lanes = L.lanes.map((l) => l.map((t) => ({ ...t, left: t.count })));
     slots = Array(SLOTS).fill(null); mice = []; particles = []; eating = new Map();
     exposed = exposedSet(G);
-    totalBlocks = leftBlocks = G.flat().filter((c) => c >= 0).length;
+    totalBlocks = leftBlocks = HP.flat().reduce((a, b) => a + b, 0);
     root.querySelector('.topo-lvl').textContent = `Livello ${lv}`;
     root.querySelector('.topo-name').textContent = L.name;
     resize(); running = true;
+    // spiegazione la prima volta che compaiono le novità
+    if (L.feats?.links && !localStorage.getItem('topo-legate')) {
+      localStorage.setItem('topo-legate', '1');
+      showModal('<div class="topo-emoji">🔗🐭</div><h2>Novità: tane legate</h2><p>Due tane unite dalla <b>catena</b> partono <b>insieme</b>: servono <b>2 posti liberi</b> e devono essere tutte e due in cima alla loro colonna.</p>', [['Ok!', () => (modal.hidden = true)]]);
+    } else if (L.feats?.hard && !localStorage.getItem('topo-duri')) {
+      localStorage.setItem('topo-duri', '1');
+      showModal('<div class="topo-emoji">🧀💪</div><h2>Novità: blocchi duri</h2><p>I blocchetti con un <b>numero</b> sono duri: spariscono solo dopo <b>quel numero di morsi</b> del loro colore. Finché ci sono, coprono quelli dietro!</p>', [['Ok!', () => (modal.hidden = true)]]);
+    }
   }
 
   function resize() {
@@ -260,14 +310,18 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
       if (!lane.length) return;
       const cx = laneX(i), cy = laneY(0), w = layout.tankW;
       if (Math.abs(x - cx) < w * 0.6 && Math.abs(y - cy) < w * 0.65) {
-        const free = slots.findIndex((s) => !s);
-        if (free < 0) { buzz(); return; }
-        const t = lane.shift();
-        slots[free] = { ...t, from: { x: cx, y: cy }, born: performance.now(), cool: 0, inFlight: 0 };
+        const free = slots.map((s, k) => (s ? -1 : k)).filter((k) => k >= 0);
+        const pj = lane[0].link != null ? partnerLane(lanes, i) : -1;
+        if (lane[0].link != null && pj < 0) { buzz(); hint = { text: '🔗 La tana legata non è ancora in cima', t: performance.now() }; return; }
+        const need = pj >= 0 ? 2 : 1;
+        if (free.length < need) { buzz(); if (need === 2) hint = { text: '🔗 Servono 2 posti liberi', t: performance.now() }; return; }
+        const go = (li, slot) => { const t = lanes[li].shift(); slots[slot] = { ...t, from: { x: laneX(li), y: laneY(0) }, born: performance.now(), cool: 0, inFlight: 0 }; };
+        go(i, free[0]); if (pj >= 0) go(pj, free[1]);
         navigator.vibrate?.(8);
       }
     });
   }
+  let hint = null;
   let buzzT = 0; const buzz = () => { buzzT = performance.now(); navigator.vibrate?.([20, 40, 20]); };
   canvas.addEventListener('pointerdown', tap);
   window.addEventListener('resize', resize);
@@ -277,8 +331,8 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
   function pickTarget(color, sx) {
     let best = -1, bestScore = -1e9;
     for (const i of exposed) {
-      if (eating.has(i)) continue;
       const y = Math.floor(i / W), x = i % W;
+      if ((eating.get(i) || 0) >= HP[y][x]) continue;
       if (G[y][x] !== color) continue;
       const score = y * 3 - Math.abs(ox + (x + 0.5) * cell - sx) / cell;
       if (score > bestScore) { bestScore = score; best = i; }
@@ -295,7 +349,7 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
         const sx = slotX(si), sy = layout.slotY;
         const target = pickTarget(s.color, sx);
         if (target >= 0) {
-          eating.set(target, true);
+          eating.set(target, (eating.get(target) || 0) + 1);
           const tx = ox + ((target % W) + 0.5) * cell, ty = oy + (Math.floor(target / W) + 0.5) * cell;
           const dist = Math.hypot(tx - sx, ty - sy);
           mice.push({ slot: si, color: s.color, target, x0: sx, y0: sy, x1: tx, y1: ty, t: 0, dur: Math.min(0.8, Math.max(0.3, dist / 650)), phase: 'go' });
@@ -310,9 +364,11 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
         m.phase = 'eat'; m.t = 0;
         const y = Math.floor(m.target / W), x = m.target % W;
         const col = colors[G[y][x]];
-        G[y][x] = -1; eating.delete(m.target); leftBlocks--;
-        exposed = exposedSet(G);
-        for (let k = 0; k < 6; k++) particles.push({ x: m.x1, y: m.y1, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 160 - 40, life: 0.6, col, r: cell * (0.08 + Math.random() * 0.08) });
+        HP[y][x]--; leftBlocks--;
+        const n = (eating.get(m.target) || 1) - 1; if (n > 0) eating.set(m.target, n); else eating.delete(m.target);
+        const gone = HP[y][x] <= 0;
+        if (gone) { G[y][x] = -1; exposed = exposedSet(G); } else m.hard = true;
+        for (let k = 0; k < (gone ? 6 : 2); k++) particles.push({ x: m.x1, y: m.y1, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 160 - 40, life: 0.6, col, r: cell * (0.08 + Math.random() * 0.08) });
       } else if (m.phase === 'eat' && m.t >= 0.18) {
         m.phase = 'done';
         const s = slots[m.slot]; if (s) s.inFlight--;
@@ -340,6 +396,14 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
       if (c < 0) { ctx.fillStyle = 'rgba(255,200,170,.18)'; rr(ctx, ox + x * cell + cell * 0.3, oy + y * cell + cell * 0.3, cell * 0.4, cell * 0.4, cell * 0.2); ctx.fill(); continue; }
       const i = y * W + x;
       drawBlock(ctx, ox + x * cell, oy + y * cell, cell, colors[c], eating.has(i) ? 0.92 : 1);
+      if (HP[y][x] > 1) {
+        const bx = ox + x * cell, by = oy + y * cell;
+        ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = Math.max(1.5, cell * 0.1);
+        rr(ctx, bx + cell * 0.1, by + cell * 0.1, cell * 0.8, cell * 0.8, cell * 0.25); ctx.stroke();
+        ctx.font = `800 ${Math.round(cell * (HP[y][x] > 9 ? 0.5 : 0.62))}px "Atkinson Hyperlegible", system-ui, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = Math.max(2, cell * 0.12); ctx.strokeStyle = 'rgba(40,20,20,.75)'; ctx.fillStyle = '#fff';
+        ctx.strokeText(HP[y][x], bx + cell / 2, by + cell / 2 + 1); ctx.fillText(HP[y][x], bx + cell / 2, by + cell / 2 + 1);
+      }
     }
     // posti
     const shake = now - buzzT < 300 ? Math.sin(now / 20) * 4 : 0;
@@ -355,11 +419,23 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
       }
     }
     // colonne di tane
+    // catene tra le tane legate visibili
+    const seen = {};
+    lanes.forEach((lane, li) => lane.slice(0, 3).forEach((t, k) => { if (t.link != null) (seen[t.link] = seen[t.link] || []).push([laneX(li), laneY(k)]); }));
+    Object.values(seen).forEach((pts) => {
+      if (pts.length < 2) return;
+      const [[x1, y1], [x2, y2]] = pts; const n = 7;
+      for (let q = 0; q <= n; q++) {
+        const px = x1 + (x2 - x1) * q / n, py = y1 + (y2 - y1) * q / n;
+        ctx.strokeStyle = '#8f7466'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(px, py, 6, 4, q % 2 ? 0 : Math.PI / 2, 0, Math.PI * 2); ctx.stroke();
+      }
+    });
     lanes.forEach((lane, li) => {
       for (let k = Math.min(lane.length, 3) - 1; k >= 0; k--) {
         const t = lane[k];
         drawTank(ctx, laneX(li), laneY(k), tankW * (k ? 0.82 : 1), colors[t.color], t.count, { alpha: k ? 0.55 : 1, glow: !k && slots.some((s) => !s) });
       }
+      if (lane[0]?.link != null) { ctx.font = `${Math.round(tankW * 0.28)}px system-ui`; ctx.textAlign = 'center'; ctx.fillText('🔗', laneX(li) + tankW * 0.42, laneY(0) - tankW * 0.42); }
       if (lane.length > 3) { ctx.fillStyle = '#9c7f70'; ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(`+${lane.length - 3}`, laneX(li), laneY(2) + tankW * 0.6); }
     });
     // topolini
@@ -369,6 +445,13 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
         const x = m.x0 + (m.x1 - m.x0) * e, y = m.y0 + (m.y1 - m.y0) * e - Math.sin(k * Math.PI) * 20;
         drawMouse(ctx, x, y, Math.max(16, cell * 0.9), colors[m.color], now / 1000, m.x1 < m.x0);
       } else drawMouse(ctx, m.x1, m.y1, Math.max(16, cell * 0.9) * (1 - m.t * 3), colors[m.color], now / 1000);
+    }
+    if (hint && now - hint.t < 1800) {
+      ctx.globalAlpha = Math.min(1, (1800 - (now - hint.t)) / 300);
+      ctx.font = '700 15px "Atkinson Hyperlegible", system-ui, sans-serif'; const tw = ctx.measureText(hint.text).width + 28;
+      ctx.fillStyle = 'rgba(43,33,24,.9)'; rr(ctx, cw / 2 - tw / 2, slotY - slotW - 18, tw, 34, 17); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(hint.text, cw / 2, slotY - slotW - 1);
+      ctx.globalAlpha = 1;
     }
     for (const p of particles) { ctx.globalAlpha = Math.max(0, p.life * 1.6); ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
     ctx.globalAlpha = 1;
