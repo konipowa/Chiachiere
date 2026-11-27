@@ -729,6 +729,20 @@ async function tabGiochi(root) {
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, g.unit(s.score)));
       })) : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato oggi.')));
   }
+  // 🐭 Topolini Golosi: classifica per livello raggiunto
+  const { data: prog } = await sb.from('game_progress').select('user_id,level').eq('game', 'topolini').in('user_id', ids).order('level', { ascending: false });
+  const myLv = (prog || []).find((p) => p.user_id === S.me.id)?.level || 1;
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openTopolini },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#ffe0ec,#ffd1a8)' }, '🐭'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Topolini Golosi'),
+        h('div', { class: 'muted small' }, 'Libera i topolini e fagli mangiare il disegno, colore per colore.')),
+      h('span', { class: 'btn small' }, myLv > 1 ? `Liv. ${myLv}` : 'Gioca')),
+    (prog || []).length ? h('div', { style: 'margin-top:12px' }, h('div', { class: 'muted small', style: 'font-weight:700' }, '🏆 Classifica livelli'),
+      prog.map((p, i) => { const w = person(p.user_id);
+        return h('div', { class: 'rank' }, h('div', { class: 'pos' }, ['🥇', '🥈', '🥉'][i] || i + 1), avatarEl(w, 'sm'),
+          h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, `livello ${p.level}`)); }))
+      : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato. Inizia tu!')));
   root.append(h('div', { class: 'card game-card disabled' }, h('div', { class: 'gico' }, '🐠'),
     h('div', {}, h('h3', { style: 'margin:0' }, "Palline d'Acquario"), h('div', { class: 'muted small' }, 'In arrivo presto, con la classifica degli amici!'))));
   root.append(h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
@@ -1071,6 +1085,22 @@ async function openProposte() {
     h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
   h('p', { class: 'muted' }, 'Gli diamo un\'occhiata, lo proviamo e, se va, lo aggiungiamo a Chiacchiere per tutti.'),
   form, h('h3', { style: 'margin-top:22px' }, 'Le tue proposte'), mine));
+}
+
+async function openTopolini() {
+  const key = `topolini-${S.me.id}`;
+  const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
+  const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
+  const { startTopolini } = await import('./topolini.js');
+  startTopolini({
+    level,
+    onWin: async (next) => {
+      localStorage.setItem(key, next);
+      await sb.from('game_progress').upsert({ user_id: S.me.id, game: 'topolini', level: next, updated_at: new Date().toISOString() });
+      if ((next - 1) % 5 === 0) sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐭 Ho finito il livello ${next - 1} di Topolini Golosi! Chi mi batte? 🧀` });
+    },
+    onClose: () => { if (S.tab === 'giochi') render(); },
+  });
 }
 
 async function saveScore(game, score, detail) {
