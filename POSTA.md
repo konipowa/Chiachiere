@@ -12,5 +12,6 @@ nessun file caricato da altri viene pubblicato prima di essere controllato.
 2. Elenco file: `select id, name, mime, size from submission_files where submission_id = '...';`
 3. Scaricare un file a pezzi: `select substr(data_base64, 1, 500000) from submission_files where id = '...';` (poi i pezzi successivi) e decodificare.
 4. Rivedere il codice prima di usarlo, adattarlo e metterlo in `giochi/<nome>/` su questo repository.
-5. Aggiornare lo stato e la risposta, che l'autore vede nell'app:
+5. Nella card del gioco/app nell'app mettere il credito all'autore: `credit('Nome')` → "✨ creato da Nome" (i nostri hanno `credit()` → "originale Chiacchiere").
+6. Aggiornare lo stato e la risposta, che l'autore vede nell'app:
    `update submissions set status = 'aggiunta', reply = '...' where id = '...';`

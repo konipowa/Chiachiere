@@ -699,6 +699,10 @@ function appendMsg(m, scroll) {
 }
 
 /* ============ GIOCHI ============ */
+// crediti: senza autore = originale Chiacchiere; con autore = "creato da …" (giochi e app mandati dagli amici)
+function credit(author, light) {
+  return h('div', { class: 'credit' + (light ? ' light' : '') + (author ? ' by' : '') }, author ? `✨ creato da ${author}` : 'originale Chiacchiere');
+}
 const GAMES = {
   parola: { name: 'Parola del giorno', ico: '🔤', desc: 'Indovina la parola di 5 lettere in 6 tentativi.', unit: (s) => (s > 6 ? 'non trovata' : `${s}/6`) },
   riflessi: { name: 'Riflessi', ico: '⚡', desc: 'Tocca appena diventa verde. Chi è più veloce?', unit: (s) => `${s} ms` },
@@ -721,7 +725,7 @@ async function tabGiochi(root) {
     root.append(h('div', { class: 'card' },
       h('div', { class: 'game-card', onclick: () => (key === 'parola' ? gameParola() : gameRiflessi()) },
         h('div', { class: 'gico' }, g.ico),
-        h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, g.name), h('div', { class: 'muted small' }, g.desc)),
+        h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, g.name), h('div', { class: 'muted small' }, g.desc), credit(g.author)),
         mine ? h('span', { class: 'done-tag' }, '✓ ' + g.unit(mine.score)) : h('span', { class: 'btn small' }, 'Gioca')),
       board.length ? h('div', { style: 'margin-top:12px' }, board.map((s, i) => {
         const w = person(s.user_id);
@@ -736,7 +740,7 @@ async function tabGiochi(root) {
     h('div', { class: 'game-card', onclick: openTopolini },
       h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#ffe0ec,#ffd1a8)' }, '🐭'),
       h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Topolini Golosi'),
-        h('div', { class: 'muted small' }, 'Libera i topolini e fagli mangiare il disegno, colore per colore.')),
+        h('div', { class: 'muted small' }, 'Libera i topolini e fagli mangiare il disegno, colore per colore.'), credit()),
       h('span', { class: 'btn small' }, myLv > 1 ? `Liv. ${myLv}` : 'Gioca')),
     (prog || []).length ? h('div', { style: 'margin-top:12px' }, h('div', { class: 'muted small', style: 'font-weight:700' }, '🏆 Classifica livelli'),
       prog.map((p, i) => { const w = person(p.user_id);
@@ -757,13 +761,13 @@ function tabUtilita(root) {
   root.append(
     h('div', { class: 'card santa-card', onclick: openSanta }, h('div', { class: 'santa-card-ico' }, '🎅'),
       h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Babbo Natale segreto'),
-        h('div', { class: 'small' }, 'Estrazione segreta, budget e idee regalo su Amazon.')),
+        h('div', { class: 'small' }, 'Estrazione segreta, budget e idee regalo su Amazon.'), credit(null, true)),
       h('span', { class: 'btn small white' }, 'Apri')),
     h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Sondaggi'),
       h('button', { class: 'btn small', onclick: newPoll }, '➕ Nuovo')),
-      h('p', { class: 'muted small', style: 'margin:4px 0 8px' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), polls),
+      h('p', { class: 'muted small', style: 'margin:4px 0 0' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), credit(), h('div', { style: 'height:8px' }), polls),
     h('div', { class: 'card game-card', onclick: chiPaga }, h('div', { class: 'gico' }, '🎲'),
-      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Chi paga?'), h('div', { class: 'muted small' }, 'Estrae a sorte qualcuno della cerchia. Niente discussioni!')),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Chi paga?'), h('div', { class: 'muted small' }, 'Estrae a sorte qualcuno della cerchia. Niente discussioni!'), credit()),
       h('span', { class: 'btn small' }, 'Estrai')),
     h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
       h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Ti serve qualcos\'altro?'), h('div', { class: 'muted small' }, 'Proponi un\'utilità o mandaci la tua app: la aggiungiamo per tutti.')),
