@@ -1,5 +1,5 @@
 // 🎱 Biliardo palla 8 di Chiacchiere: allenamento, contro il computer, sfide nella cerchia (anche a squadre).
-import * as P from './biliardo-fisica.js?v=34';
+import * as P from './biliardo-fisica.js?v=35';
 
 let D;
 export function initBiliardo(deps) { D = deps; }
@@ -164,20 +164,47 @@ export async function openPoolGame({ mode, id = null, level = 'medio' }) {
   let g = null;                       // partita online
   let st = P.newState();              // stato del tavolo
   let anim = null, busy = false, dirty = false, claimed = false;
-  let aim = { dx: 1, dy: 0 }, power = 0.55, dragCue = false, cheers = [];
+  let aim = { dx: 1, dy: 0 }, power = 0, dragCue = false, cheers = [];
   let pottedTotal = 0, ended = null; // allenamento / computer
   const cpuName = { facile: 'Computer 🙂', medio: 'Computer 😎', difficile: 'Computer 🤓' }[level];
 
   const canvas = D.h('canvas', { class: 'pool-canvas' });
+  // 🎱 stecca fissa a lato del tavolo: tiri indietro il dito per caricare, lasci e parte il tiro
+  const cueStick = D.h('div', { class: 'cue-stick' }, D.h('i', { class: 'cue-tip' }));
+  const cueFill = D.h('div', { class: 'cue-fill' }), cueLabel = D.h('div', { class: 'cue-label' }, '⬇');
+  const cueBar = D.h('div', { class: 'pool-cuebar' }, cueFill, cueStick, cueLabel);
+  let pull = null;
+  cueBar.addEventListener('pointerdown', (e) => {
+    if (!myTurn()) return;
+    cueBar.setPointerCapture(e.pointerId); pull = { y0: e.clientY, h: cueBar.clientHeight * 0.75 }; cueBar.classList.add('pulling');
+  });
+  cueBar.addEventListener('pointermove', (e) => {
+    if (!pull) return;
+    const k = Math.max(0, Math.min(1, (e.clientY - pull.y0) / pull.h));
+    power = k; setCue(k); draw();
+  });
+  const release = () => {
+    if (!pull) return;
+    pull = null; cueBar.classList.remove('pulling');
+    const p = power;
+    if (p < 0.04) { power = 0; setCue(0); draw(); return; } // quasi niente: annullato
+    power = Math.max(0.05, p); setCue(0); shoot().finally?.(() => {});
+  };
+  cueBar.addEventListener('pointerup', release); cueBar.addEventListener('pointercancel', release);
+  function setCue(k) {
+    cueStick.style.transform = `translateY(${k * 75}%)`; cueFill.style.height = `${k * 100}%`;
+    cueFill.style.background = k > 0.8 ? '#e53935' : k > 0.5 ? '#ff9800' : '#4caf50';
+    cueLabel.textContent = k ? `${Math.round(k * 100)}%` : '⬇';
+  }
   const ctx = canvas.getContext('2d');
   const header = D.h('div'), players = D.h('div'), msg = D.h('div', { class: 'pool-msg' }), controls = D.h('div', { class: 'pool-controls' }), extra = D.h('div');
   fill(root, D.h('div', { class: 'cg-top' }, D.h('button', { class: 'topo-x', 'aria-label': 'Chiudi', onclick: closeView }, '✕'), header, D.h('div', { style: 'width:44px' })),
-    D.h('div', { class: 'pool-main' }, players, D.h('div', { class: 'pool-wrap' }, canvas), msg, controls, extra));
+    D.h('div', { class: 'pool-main' }, players, D.h('div', { class: 'pool-wrap' }, canvas, cueBar), msg, controls, extra));
 
   // geometria: tavolo verticale (la zona di partenza in basso)
   let sc = 1, bd = 16, cw = 0, ch = 0;
   function layout() {
-    const wrap = canvas.parentNode, availW = Math.min(wrap.clientWidth || 360, 520);
+    const wrap = canvas.parentNode, availW = Math.min((wrap.clientWidth || 360) - 58, 520);
     const availH = Math.max(320, window.innerHeight - (root.querySelector('.pool-controls')?.offsetHeight || 150) - (players.offsetHeight || 0) - 120);
     sc = Math.min((availW - 2 * bd) / P.H, (availH - 2 * bd) / P.W);
     cw = P.H * sc + 2 * bd; ch = P.W * sc + 2 * bd;
@@ -273,10 +300,9 @@ export async function openPoolGame({ mode, id = null, level = 'medio' }) {
   function aimAtBest() {
     const c = cueBall(); if (!c) return;
     const tg = P.legalTargets(st), cand = st.balls.filter((b) => tg.includes(b[0]));
-    if (!st.broken) { aim = { dx: P.FOOT[0] - c[1], dy: P.FOOT[1] - c[2] }; power = 0.95; return; }
+    if (!st.broken) { aim = { dx: P.FOOT[0] - c[1], dy: P.FOOT[1] - c[2] }; return; }
     cand.sort((a, b) => ((a[1] - c[1]) ** 2 + (a[2] - c[2]) ** 2) - ((b[1] - c[1]) ** 2 + (b[2] - c[2]) ** 2));
     if (cand[0]) aim = { dx: cand[0][1] - c[1], dy: cand[0][2] - c[2] };
-    if (power > 0.9) power = 0.55;
   }
 
   /* ---- animazione ---- */
@@ -300,6 +326,7 @@ export async function openPoolGame({ mode, id = null, level = 'medio' }) {
     const c = cueBall(); if (!c) return;
     const place = st.inHand ? [c[1], c[2]] : null;
     const shot = { dx: +aim.dx.toFixed(5), dy: +aim.dy.toFixed(5), power: +power.toFixed(3), place };
+    power = 0;
     const balls = ballsWith(place);
     const res = P.simulate(balls, shot);
     const out = P.applyRules({ ...st, balls }, res);
@@ -417,16 +444,15 @@ export async function openPoolGame({ mode, id = null, level = 'medio' }) {
         mode === 'cpu' ? D.h('button', { class: 'btn', style: 'margin-top:8px', onclick: () => { st = P.newState(); ended = null; aimAtBest(); renderUI(); draw(); } }, '🔁 Rivincita') : null);
     }
     const iMustAnswer = mode === 'online' && g.status === 'invito' && teamOf(g, me) && !g.accepted.includes(me);
+    cueBar.classList.toggle('off', !mine);
     fill(controls,
       banner,
       mine ? [
-        D.h('div', { class: 'pool-power' }, D.h('span', { class: 'small', style: 'font-weight:800' }, '💪 Forza'),
-          D.h('input', { type: 'range', min: 3, max: 100, value: Math.round(power * 100), oninput: (e) => { power = e.target.value / 100; draw(); } })),
-        D.h('div', { class: 'row', style: 'gap:8px;justify-content:center' },
-          D.h('button', { class: 'btn round ghost', 'aria-label': 'Ruota a sinistra', onclick: () => nudge(-0.6) }, '↺'),
-          D.h('button', { class: 'btn', style: 'flex:1;max-width:220px', onclick: shoot }, '🎱 Tira!'),
-          D.h('button', { class: 'btn round ghost', 'aria-label': 'Ruota a destra', onclick: () => nudge(0.6) }, '↻')),
-        D.h('p', { class: 'muted small center', style: 'margin:6px 0 0' }, st.inHand ? 'Palla in mano: trascina la bianca dove vuoi, poi tocca il tavolo per mirare.' : 'Tocca o trascina sul tavolo per mirare. ↺ ↻ per i ritocchi fini.'),
+        D.h('div', { class: 'row', style: 'gap:10px;justify-content:center;align-items:center' },
+          D.h('button', { class: 'btn round ghost small-round', 'aria-label': 'Ritocca a sinistra', onclick: () => nudge(-0.5) }, '↺'),
+          D.h('span', { class: 'muted small' }, 'ritocco fine'),
+          D.h('button', { class: 'btn round ghost small-round', 'aria-label': 'Ritocca a destra', onclick: () => nudge(0.5) }, '↻')),
+        D.h('p', { class: 'muted small center', style: 'margin:4px 0 0' }, st.inHand ? '✋ Palla in mano: trascina la bianca, tocca il tavolo per mirare, poi tira giù la stecca qui a destra.' : '👆 Tocca il tavolo per mirare, poi tira giù la stecca a destra e lascia per tirare.'),
       ] : null,
       iMustAnswer ? D.h('div', { class: 'row', style: 'justify-content:center;gap:8px' },
         D.h('button', { class: 'btn', onclick: async () => { const { error } = await D.sb.rpc('pool_respond', { p_game: id, p_accept: true }); if (error) D.toast(D.errMsg(error)); reload(); } }, '✅ Accetto la sfida'),

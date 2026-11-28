@@ -1,11 +1,11 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=34';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=34';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=34';
-import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=34';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=35';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=35';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=35';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=35';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '34';
+const VERSIONE = '35';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -1370,7 +1370,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=34');
+  const { startTopolini } = await import('./topolini.js?v=35');
   startTopolini({
     level,
     onWin: async (next) => {

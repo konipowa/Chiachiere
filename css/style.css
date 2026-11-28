@@ -498,3 +498,13 @@ button.circle-pick { position: relative; cursor: pointer; font: inherit; font-we
 .pz-card-img { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
 .pz-score { width: 64px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
 .pz-bar { justify-content: center; flex-wrap: nowrap; }
+.pool-wrap { gap: 10px; align-items: stretch; }
+.pool-cuebar { position: relative; width: 46px; border-radius: 14px; background: linear-gradient(180deg, #e8dccb, #d8c6ad); box-shadow: inset 0 2px 6px rgba(0,0,0,.15); overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.pool-cuebar.off { opacity: .35; pointer-events: none; }
+.pool-cuebar.pulling { cursor: grabbing; }
+.cue-fill { position: absolute; left: 0; right: 0; top: 0; height: 0; opacity: .35; }
+.cue-stick { position: absolute; left: 50%; top: 4%; width: 12px; height: 92%; margin-left: -6px; border-radius: 6px 6px 3px 3px; background: linear-gradient(90deg, #b07a43, #e9c38f 45%, #a56d39); box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.cue-stick::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; border-radius: 0 0 3px 3px; background: linear-gradient(90deg, #3b2314, #6b3f22 45%, #321d10); }
+.cue-tip { position: absolute; left: 0; right: 0; top: 0; height: 10px; border-radius: 6px 6px 0 0; background: #2b6cb0; }
+.cue-label { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: .68rem; font-weight: 800; color: #4a3626; text-shadow: 0 1px 0 #fff; pointer-events: none; }
+.small-round { width: 40px; height: 40px; font-size: 1.1rem; }
