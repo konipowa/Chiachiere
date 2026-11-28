@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '22';
+const VERSIONE = '23';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -88,6 +88,7 @@ if ('serviceWorker' in navigator) {
 (function readInvite() {
   const qs = new URLSearchParams(location.search);
   if (qs.get('apri')) localStorage.setItem('apri', qs.get('apri'));
+  if (qs.get('sondaggio')) localStorage.setItem('sondaggio', qs.get('sondaggio'));
   const code = qs.get('invito');
   if (code) {
     localStorage.setItem('invito', code.toUpperCase());
@@ -122,6 +123,7 @@ async function renderAuth(mode) {
   let avatar = AVATARS[Math.floor(Math.random() * 8)];
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   const err = h('div', { class: 'error' });
+  const pollBox = invite && localStorage.getItem('sondaggio') ? await pollPreviewCard(localStorage.getItem('sondaggio'), invite, mode) : null;
   const name = h('input', { class: 'input', id: 'nome', autocomplete: 'username', autocapitalize: 'none', maxlength: 24, placeholder: 'es. Giulia' });
   const pass = h('input', { class: 'input', id: 'pass', type: 'password', autocomplete: mode === 'new' ? 'new-password' : 'current-password', placeholder: 'almeno 6 caratteri' });
   const show = h('button', { class: 'linkbtn small', type: 'button', onclick: () => { pass.type = pass.type === 'password' ? 'text' : 'password'; show.textContent = pass.type === 'password' ? 'Mostra password' : 'Nascondi password'; } }, 'Mostra password');
@@ -177,6 +179,7 @@ async function renderAuth(mode) {
       circleName
         ? h('p', {}, 'Ti hanno invitato nella cerchia ', h('b', {}, `«${circleName}»`), ' 🎉')
         : h('p', { class: 'muted' }, 'Il social per i tuoi amici, con i giochi dentro.')),
+    pollBox,
     isStandalone() ? null : h('button', { class: 'btn ghost block', style: 'margin-bottom:14px', onclick: () => showInstall(true) }, '📲 Installa l\'app sul telefono'),
     form,
     h('p', { class: 'center' }, mode === 'new' ? 'Hai già un account? ' : 'Prima volta qui? ',
@@ -201,6 +204,18 @@ async function afterLogin() {
   await loadCircles();
   if (!S.circles.length) return renderNoCircle();
   await openCircle(localStorage.getItem('cerchia'));
+  const pollId = localStorage.getItem('sondaggio');
+  if (pollId) {
+    localStorage.removeItem('sondaggio');
+    const pend = JSON.parse(localStorage.getItem('votoPendente') || 'null');
+    localStorage.removeItem('votoPendente');
+    if (pend && pend.poll === pollId) {
+      const { error } = await sb.from('poll_votes').upsert({ poll_id: pollId, user_id: S.me.id, option: pend.option });
+      toast(error ? errMsg(error) : 'Voto registrato! 🗳️', 3000);
+    }
+    S.tab = 'giochi'; S.extraView = 'utilita'; render();
+    return maybeShowInstall();
+  }
   if (localStorage.getItem('apri') === 'santa') {
     localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
   } else maybeShowInstall();
@@ -827,10 +842,40 @@ function pollCard(p) {
         afterPollChange();
       } }, h('span', { class: 'bar', style: `width:${pct}%` }), h('span', { class: 'lbl' }, o), h('span', { class: 'cnt' }, voters, ` ${pct}%`));
     }),
+    h('button', { class: 'linkbtn small', onclick: () => sharePoll(p) }, '📤 Condividi'),
     p.user_id === S.me.id && !p.closed ? h('button', { class: 'linkbtn small', onclick: async () => {
       await sb.from('polls').update({ closed: true }).eq('id', p.id); afterPollChange();
     } }, 'Chiudi sondaggio') : null);
 }
+async function sharePoll(p) {
+  const link = `${inviteLink(circle().invite_code)}&sondaggio=${p.id}`;
+  const text = `📊 ${p.question}\n${p.options.map((o) => '▫️ ' + o).join('\n')}\n\nVota qui 👇`;
+  if (navigator.share) { try { await navigator.share({ title: 'Sondaggio', text, url: link }); } catch {} }
+  else { await navigator.clipboard.writeText(`${text}\n${link}`); toast('Link copiato! Incollalo su WhatsApp 👍'); }
+}
+
+// anteprima del sondaggio per chi arriva dal link (anche senza account)
+async function pollPreviewCard(pollId, code, mode) {
+  const { data } = await sb.rpc('poll_preview', { p_poll: pollId, p_code: code });
+  const p = data?.[0];
+  if (!p) return null;
+  let chosen = JSON.parse(localStorage.getItem('votoPendente') || 'null')?.option;
+  const opts = h('div');
+  const draw = () => opts.replaceChildren(...p.options.map((o, i) => {
+    const n = p.counts[i] || 0, tot = p.total + (chosen != null ? 1 : 0);
+    const mineN = n + (chosen === i ? 1 : 0), pct = tot ? Math.round((mineN / tot) * 100) : 0;
+    return h('button', { type: 'button', class: 'poll-opt' + (chosen === i ? ' on' : ''), disabled: p.closed, onclick: () => {
+      chosen = i; localStorage.setItem('votoPendente', JSON.stringify({ poll: pollId, option: i })); draw();
+    } }, h('span', { class: 'bar', style: `width:${pct}%` }), h('span', { class: 'lbl' }, o), h('span', { class: 'cnt' }, `${pct}%`));
+  }));
+  draw();
+  return h('div', { class: 'card', style: 'margin-bottom:14px' },
+    h('div', { class: 'muted small' }, `📊 Sondaggio di ${p.author} · ${p.total} ${p.total === 1 ? 'voto' : 'voti'}`),
+    h('h2', { style: 'margin:6px 0 10px' }, p.question), opts,
+    h('p', { class: 'small', style: 'margin:8px 0 0;font-weight:700;color:var(--brand-dark)' },
+      p.closed ? 'Questo sondaggio è chiuso.' : mode === 'new' ? '👆 Scegli, poi crea il profilo qui sotto: il tuo voto conta subito!' : '👆 Scegli, poi accedi: il tuo voto conta subito!'));
+}
+
 function newPoll() {
   const q = h('input', { class: 'input', maxlength: 200, placeholder: 'es. Dove andiamo sabato?' });
   const opts = h('div', { class: 'stack' });
@@ -1124,7 +1169,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=22');
+  const { startTopolini } = await import('./topolini.js?v=23');
   startTopolini({
     level,
     onWin: async (next) => {
