@@ -418,3 +418,28 @@ details[open] > summary { margin-bottom: 8px; }
 .cg-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; font-size: .95rem; }
 .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .team-box { background: #f6ece1; border-radius: 12px; padding: 8px 10px; min-height: 60px; }
+
+/* ⚽ TORNEO CALCIO BALILLA */
+.tb-scroll { overflow-x: auto; margin-top: 8px; -webkit-overflow-scrolling: touch; }
+.tb-grid { border-collapse: collapse; font-size: .82rem; background: #fff; }
+.tb-grid th, .tb-grid td { border: 1px solid #3a2a1c; min-width: 26px; height: 30px; text-align: center; padding: 0 3px; }
+.tb-grid th { background: #f6ece1; font-weight: 800; }
+.tb-grid .tb-c { text-align: left; min-width: 74px; font-size: .74rem; font-weight: 700; line-height: 1.15; padding: 2px 5px; }
+.tb-grid td.x { background: linear-gradient(to top right, transparent calc(50% - 1px), #3a2a1c, transparent calc(50% + 1px)), linear-gradient(to bottom right, transparent calc(50% - 1px), #3a2a1c, transparent calc(50% + 1px)); }
+.tb-grid td.cell { cursor: pointer; font-weight: 800; }
+.tb-grid td.p3 { background: #c9f0c9; } .tb-grid td.p2 { background: #e5f7d9; } .tb-grid td.p1 { background: #fde8d8; } .tb-grid td.p0 { background: #f9d3d3; }
+.tb-grid td.tot { font-weight: 800; background: #fff6ec; min-width: 40px; }
+.tb-num { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; border-radius: 7px; background: var(--ink); color: #fff; font-size: .78rem; margin-right: 4px; }
+.tb-team { font-size: .9rem; }
+.tb-match { display: flex; align-items: center; gap: 6px; width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px; margin-top: 6px; cursor: pointer; text-align: left; }
+.tb-match.done { background: #fbf6f0; }
+.tb-side { flex: 1; min-width: 0; font-size: .85rem; } .tb-side.r { text-align: right; } .tb-side.win { font-weight: 800; }
+.tb-score { min-width: 38px; text-align: center; }
+.tb-cut { border-bottom: 3px dashed var(--brand) !important; }
+.tb-bracket { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+.tb-col { min-width: 210px; display: flex; flex-direction: column; justify-content: space-around; gap: 10px; }
+.tb-bm { display: block; width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 0; overflow: hidden; cursor: pointer; text-align: left; margin-bottom: 8px; }
+.tb-bslot { display: block; width: 100%; border: none; background: none; padding: 8px 10px; text-align: left; font: inherit; color: inherit; }
+.tb-bslot + .tb-bslot { border-top: 1px solid var(--line); }
+.tb-bslot.win { background: #dff5df; font-weight: 800; } .tb-bslot.lose { opacity: .5; }
+.tb-bslot.pick, .chip.pick { outline: 3px solid var(--brand); outline-offset: -3px; background: var(--brand-soft); }

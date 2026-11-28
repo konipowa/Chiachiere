@@ -1,8 +1,9 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=26';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=27';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=27';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '26';
+const VERSIONE = '27';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -103,6 +104,7 @@ if ('serviceWorker' in navigator) {
 sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') { cleanup(); renderAuth(); } });
 
 initScacchi({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
+initBalilla({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 boot();
 async function boot() {
   try {
@@ -238,6 +240,9 @@ async function afterLogin() {
   if ((apri || '').startsWith('scacchi:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openChessGame(apri.slice(8)); return;
   }
+  if ((apri || '').startsWith('torneo:')) {
+    localStorage.removeItem('apri'); S.tab = 'chat'; render(); openTorneo(apri.slice(7)); return;
+  }
   if (localStorage.getItem('apri') === 'santa') {
     localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
   } else maybeShowInstall();
@@ -338,6 +343,10 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refreshPollsSoon)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `circle_id=eq.${cid}` }, (p) => refreshChess(p.new.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_cheers' }, (p) => refreshChess(p.new?.game_id || p.old?.game_id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_tournaments', filter: `circle_id=eq.${cid}` }, (p) => refreshTorneo(p.new?.id || p.old?.id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_players' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_teams' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_matches' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, onSocialChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'circle_invites', filter: `invitee=eq.${S.me.id}` }, onSocialChange)
     .subscribe();
@@ -731,7 +740,7 @@ function appendMsg(m, scroll) {
   if (list.querySelector(`[data-id="${m.id}"]`)) return;
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
-  const bubble = m.game_id ? chessChatCard(m.game_id) : m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
+  const bubble = m.game_id ? chessChatCard(m.game_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
   const row = h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
     me ? null : avatarEl(w, 'sm'),
     h('div', {}, me ? null : h('div', { class: 'who' }, w.username), bubble, h('div', { class: 'time' }, timeOf(m.created_at))));
@@ -843,6 +852,9 @@ function tabUtilita(root) {
     h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Sondaggi'),
       h('button', { class: 'btn small', onclick: newPoll }, '➕ Nuovo')),
       h('p', { class: 'muted small', style: 'margin:4px 0 0' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), credit(), h('div', { style: 'height:8px' }), polls),
+    h('div', { class: 'card game-card', onclick: openTornei }, h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#d6f5d6,#8fd18f)' }, '⚽'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Torneo di calcio balilla'), h('div', { class: 'muted small' }, 'Iscrizioni, coppie portiere + attaccante, girone all\'italiana e finale.'), credit()),
+      h('span', { class: 'btn small' }, 'Apri')),
     h('div', { class: 'card game-card', onclick: chiPaga }, h('div', { class: 'gico' }, '🎲'),
       h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Chi paga?'), h('div', { class: 'muted small' }, 'Estrae a sorte qualcuno della cerchia. Niente discussioni!'), credit()),
       h('span', { class: 'btn small' }, 'Estrai')),
@@ -1229,7 +1241,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=26');
+  const { startTopolini } = await import('./topolini.js?v=27');
   startTopolini({
     level,
     onWin: async (next) => {
