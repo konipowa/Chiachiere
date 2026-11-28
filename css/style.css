@@ -443,3 +443,6 @@ details[open] > summary { margin-bottom: 8px; }
 .tb-bslot + .tb-bslot { border-top: 1px solid var(--line); }
 .tb-bslot.win { background: #dff5df; font-weight: 800; } .tb-bslot.lose { opacity: .5; }
 .tb-bslot.pick, .chip.pick { outline: 3px solid var(--brand); outline-offset: -3px; background: var(--brand-soft); }
+.tb-badge { flex-basis: 100%; font-size: .75rem; font-weight: 700; color: var(--soft); margin-top: 2px; padding: 0 10px 6px; }
+.tb-match { flex-wrap: wrap; } .tb-match .tb-badge { padding: 0; text-align: center; }
+.tb-badge.call { color: var(--brand-dark); } .tb-badge.wait { color: #b7791f; }

@@ -184,7 +184,13 @@ export async function openTorneo(id) {
         D.h('div', { style: 'width:44px' })),
       D.h('div', { class: 'cg-main' },
         st === 'finito' ? D.h('div', { class: 'card hero center' }, D.h('div', { style: 'font-size:2.4rem' }, '🏆'), D.h('h2', { style: 'margin:4px 0' }, 'Campioni!'), D.h('b', {}, teamName(T, T.t.champion))) : null,
-        tabs, body,
+        tabs,
+        isOrg() && (st === 'girone' || st === 'finale') ? D.h('div', { class: 'row wrap', style: 'gap:6px;align-items:center;margin-bottom:10px' },
+          D.h('span', { class: 'small', style: 'font-weight:800' }, '⏱️ Tempo per presentarsi al tavolo:'),
+          [[0, 'Off'], [3, '3′'], [5, '5′'], [10, '10′'], [15, '15′']].map(([v, l]) => D.h('button', { class: 'chip' + (T.t.call_minutes === v ? ' on' : ''), onclick: async () => {
+            await D.sb.from('foos_tournaments').update({ call_minutes: v }).eq('id', id); reload();
+          } }, l))) : null,
+        body,
         isOrg() ? D.h('div', { class: 'center', style: 'margin-top:20px' }, D.h('button', { class: 'linkbtn small', onclick: async () => {
           if (!(await D.askConfirm('🗑️ Cancellare il torneo?', 'Spariscono coppie, risultati e classifica per tutti.', 'Sì, cancella'))) return;
           await D.sb.from('foos_tournaments').delete().eq('id', id); closeView(); D.toast('Torneo cancellato');
@@ -273,7 +279,7 @@ export async function openTorneo(id) {
       T.teams.map((o) => {
         if (o.num === t.num) return D.h('td', { class: 'x' });
         const m = find(t.num, o.num), p = m ? ptsFor(m, t.num) : null;
-        return D.h('td', { class: 'cell' + (p == null ? '' : ' p' + p), onclick: () => m && risultato(m) }, p ?? '');
+        return D.h('td', { class: 'cell' + (p == null ? '' : ' p' + p), onclick: () => m && matchSheet(m) }, p ?? (m?.proposed != null ? '⏳' : m?.called_at ? '📣' : ''));
       }),
       D.h('td', { class: 'tot' }, posOf.get(t.num).pts), D.h('td', { class: 'tot' }, posOf.get(t.num).pg ? posOf.get(t.num).pos + 'ª' : '')));
     const done = g.filter((m) => m.result != null).length;
@@ -285,28 +291,74 @@ export async function openTorneo(id) {
         D.h('p', { class: 'muted small', style: 'margin:8px 0 0' }, 'Tocca una casella per segnare il risultato. 3 vittoria · 2 vinta ai vantaggi · 1 persa ai vantaggi · 0 sconfitta.')),
       D.h('div', { class: 'card' }, D.h('b', {}, `📅 Partite (${done}/${g.length})`),
         turni.map((r) => D.h('div', { style: 'margin-top:10px' }, D.h('div', { class: 'small muted', style: 'font-weight:800' }, `${r + 1}° turno${r === nextRound ? ' · si gioca ora' : ''}`),
-          g.filter((m) => m.round === r).map((m) => D.h('button', { class: 'tb-match' + (m.result == null ? '' : ' done'), onclick: () => risultato(m) },
+          g.filter((m) => m.round === r).map((m) => D.h('button', { class: 'tb-match' + (m.result == null ? '' : ' done'), onclick: () => matchSheet(m) },
             D.h('span', { class: 'tb-side' + (m.result >= 2 ? ' win' : '') }, teamEl(T, m.a)),
             D.h('b', { class: 'tb-score' }, m.result == null ? 'vs' : `${m.result}–${3 - m.result}`),
-            D.h('span', { class: 'tb-side r' + (m.result != null && m.result <= 1 ? ' win' : '') }, teamEl(T, m.b))))))),
+            D.h('span', { class: 'tb-side r' + (m.result != null && m.result <= 1 ? ' win' : '') }, teamEl(T, m.b)), badge(m)))))),
       T.t.status === 'girone' ? D.h('button', { class: 'btn block', onclick: () => { tab = 'finale'; render(); } }, done === g.length ? '🏆 Vai alla fase finale' : '🏆 Fase finale') : null,
     ];
   }
-  function risultato(m) {
-    if (T.t.status !== 'girone') return D.toast('Il girone è chiuso');
-    const A = teamName(T, m.a), B = teamName(T, m.b);
-    const opt = (r, label) => D.h('button', { class: 'btn block ' + (m.result === r ? '' : 'ghost'), style: 'margin-top:8px', onclick: async () => {
-      const { error } = await D.sb.from('foos_matches').update({ result: r, updated_by: me, updated_at: new Date().toISOString() }).eq('id', m.id);
-      D.closeSheet(); if (error) return D.toast(D.errMsg(error)); D.toast('Risultato segnato ✓'); reload();
-    } }, label);
-    D.openSheet(D.h('div', {}, D.h('h2', { class: 'center' }, `${m.a} contro ${m.b}`),
-      D.h('p', { class: 'center muted', style: 'margin-top:0' }, `${A}  vs  ${B}`),
-      opt(3, `🏆 Vince ${A} (3–0)`), opt(2, `Vince ${A} ai vantaggi (2–1)`),
-      opt(1, `Vince ${B} ai vantaggi (1–2)`), opt(0, `🏆 Vince ${B} (0–3)`),
-      m.result != null ? D.h('button', { class: 'btn plain block', style: 'margin-top:8px', onclick: async () => {
-        await D.sb.from('foos_matches').update({ result: null }).eq('id', m.id); D.closeSheet(); reload();
-      } }, 'Cancella il risultato') : null,
-      D.h('button', { class: 'btn plain block', style: 'margin-top:4px', onclick: D.closeSheet }, 'Chiudi')));
+  // ---- scheda di una partita: chiamata al tavolo, "ci siamo", risultato proposto e confermato ----
+  function mySide(m) {
+    const t = (n) => T.teams.find((x) => x.num === n);
+    if (t(m.a) && [t(m.a).portiere, t(m.a).attaccante].includes(me)) return 'a';
+    if (t(m.b) && [t(m.b).portiere, t(m.b).attaccante].includes(me)) return 'b';
+    return null;
+  }
+  const deadline = (m) => (m.called_at && T.t.call_minutes ? Date.parse(m.called_at) + T.t.call_minutes * 60000 : null);
+  const fmtLeft = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+  function badge(m) {
+    if (m.result != null) return m.tavolino ? D.h('div', { class: 'tb-badge' }, '⚖️ a tavolino') : null;
+    if (m.proposed != null) return D.h('div', { class: 'tb-badge wait' }, '⏳ risultato da confermare');
+    if (m.called_at) {
+      const dl = deadline(m);
+      return D.h('div', { class: 'tb-badge call' }, '📣 chiamata al tavolo', m.a_ready ? ' · ✋A' : '', m.b_ready ? ' · ✋B' : '',
+        dl ? D.h('span', { 'data-deadline': dl }, ' · ' + fmtLeft(dl - Date.now())) : null);
+    }
+    return null;
+  }
+  function descr(m, v) {
+    return m.phase === 'girone' ? (v >= 2 ? `vince ${m.a}${v === 2 ? ' ai vantaggi' : ''} (${v}–${3 - v})` : `vince ${m.b}${v === 1 ? ' ai vantaggi' : ''} (${v}–${3 - v})`) : `passa ${v} · ${teamName(T, v)}`;
+  }
+  function matchSheet(m0) {
+    const m = T.matches.find((x) => x.id === m0.id) || m0;
+    const phaseOpen = (m.phase === 'girone' && T.t.status === 'girone') || (m.phase === 'finale' && T.t.status === 'finale');
+    if (m.a == null || m.b == null) return D.toast(m.round === 0 && m.phase === 'finale' ? 'Questa coppia passa il turno' : 'Aspetta i vincitori dei turni prima');
+    const side = mySide(m), org = isOrg();
+    const rpc = async (fn, args, ok) => { const { data, error } = await D.sb.rpc(fn, args); D.closeSheet(); if (error) return D.toast(D.errMsg(error), 3500); if (ok) D.toast(typeof ok === 'function' ? ok(data) : ok); reload(); };
+    const A = teamName(T, m.a), B = teamName(T, m.b), parts = [];
+    parts.push(D.h('h2', { class: 'center', style: 'margin-bottom:2px' }, `${m.a} contro ${m.b}`), D.h('p', { class: 'center muted', style: 'margin-top:0' }, `${A}  vs  ${B}`));
+    if (m.result != null) {
+      parts.push(D.h('div', { class: 'card center' }, D.h('b', {}, '✅ ' + descr(m, m.result)), m.tavolino ? D.h('div', { class: 'small muted' }, '⚖️ assegnata a tavolino') : null));
+      if (org && m.phase === 'girone' && phaseOpen) parts.push(D.h('button', { class: 'btn plain block', onclick: () => rpc('foos_reset', { p_match: m.id }, 'Risultato cancellato') }, 'Cancella il risultato (arbitro)'));
+    } else if (phaseOpen) {
+      // chiamata al tavolo
+      if (m.called_at) {
+        const dl = deadline(m);
+        parts.push(D.h('div', { class: 'card' }, D.h('b', {}, '📣 Chiamata al tavolo'),
+          dl ? D.h('div', { class: 'small' }, '⏱️ Tempo per presentarsi: ', D.h('b', { 'data-deadline': dl }, fmtLeft(dl - Date.now()))) : D.h('div', { class: 'small muted' }, 'Senza limite di tempo'),
+          D.h('div', { class: 'small', style: 'margin-top:4px' }, `${m.a_ready ? '✋' : '⌛'} ${A}`), D.h('div', { class: 'small' }, `${m.b_ready ? '✋' : '⌛'} ${B}`),
+          side && !m[side + '_ready'] ? D.h('button', { class: 'btn block', style: 'margin-top:8px', onclick: () => rpc('foos_ready', { p_match: m.id }, 'Ci siete! ✋') }, '✋ Ci siamo!') : null));
+      }
+      if (org) parts.push(D.h('button', { class: 'btn ghost block', style: 'margin-bottom:8px', onclick: () => rpc('foos_call', { p_match: m.id }, 'Chiamati! Arriva la notifica 📣') }, m.called_at ? '📣 Richiama al tavolo' : '📣 Chiama al tavolo'));
+      // risultato proposto
+      if (m.proposed != null) {
+        const theirs = side && mySide({ ...m }) && side !== (T.teams.some((t) => t.num === m.a && [t.portiere, t.attaccante].includes(m.proposed_by)) ? 'a' : 'b');
+        parts.push(D.h('div', { class: 'card', style: 'background:#fff4d6' }, D.h('b', {}, `⏳ ${D.person(m.proposed_by).username} dice: ${descr(m, m.proposed)}`),
+          theirs || org ? D.h('div', { class: 'row', style: 'gap:8px;margin-top:8px' },
+            D.h('button', { class: 'btn', style: 'flex:1', onclick: () => rpc('foos_confirm', { p_match: m.id, p_accept: true }, 'Confermato ✓') }, '✅ Confermo'),
+            D.h('button', { class: 'btn plain', style: 'flex:1', onclick: () => rpc('foos_confirm', { p_match: m.id, p_accept: false }, 'Rifiutato') }, '❌ Non è così'))
+            : D.h('div', { class: 'small muted', style: 'margin-top:4px' }, 'In attesa che l\'altra coppia confermi.')));
+      }
+      if (side || org) {
+        const vals = m.phase === 'girone' ? [[3, `🏆 Vince ${A} (3–0)`], [2, `Vince ${A} ai vantaggi (2–1)`], [1, `Vince ${B} ai vantaggi (1–2)`], [0, `🏆 Vince ${B} (0–3)`]]
+          : [[m.a, `🏆 Vince ${m.a} · ${A}`], [m.b, `🏆 Vince ${m.b} · ${B}`]];
+        parts.push(D.h('div', { class: 'small muted', style: 'margin-top:6px' }, org ? 'Segna il risultato (da arbitro vale subito):' : 'Segna il risultato (poi lo conferma l\'altra coppia):'),
+          vals.map(([v, l]) => D.h('button', { class: 'btn ghost block', style: 'margin-top:6px', onclick: () => rpc('foos_propose', { p_match: m.id, p_val: v }, (d) => (d === 'fatto' ? 'Risultato segnato ✓' : 'Inviato! Ora conferma l\'altra coppia ⏳')) }, l)));
+      } else parts.push(D.h('p', { class: 'muted small center' }, 'Il risultato lo segnano le due coppie (o l\'organizzatore).'));
+    }
+    parts.push(D.h('button', { class: 'btn plain block', style: 'margin-top:6px', onclick: D.closeSheet }, 'Chiudi'));
+    D.openSheet(D.h('div', {}, parts.flat()));
   }
   function viewClassifica() {
     const cl = classifica(T.teams, T.matches), q = T.t.status === 'girone' ? T.t.qualify : null;
@@ -328,7 +380,7 @@ export async function openTorneo(id) {
         const bye = r === 0 && (m.a == null || m.b == null);
         if (bye && m.a == null && m.b == null) return null;
         const side = (num, other) => D.h('div', { class: 'tb-bslot' + (m.result != null && m.result === num ? ' win' : m.result != null ? ' lose' : '') }, teamEl(T, num, { bye: r === 0 && num == null && other != null }));
-        return D.h('button', { class: 'tb-bm', onclick: () => vincitore(m) }, side(m.a, m.b), side(m.b, m.a));
+        return D.h('button', { class: 'tb-bm', onclick: () => matchSheet(m) }, side(m.a, m.b), side(m.b, m.a), badge(m));
       }))));
   }
   function viewPreparaFinale() {
@@ -377,32 +429,22 @@ export async function openTorneo(id) {
     await D.sb.from('foos_tournaments').update({ status: 'finale', qualify: fb.q }).eq('id', id);
     finaleBozza = null; tab = 'finale'; reload();
   }
-  function vincitore(m) {
-    if (T.t.status !== 'finale') return;
-    if (m.a == null || m.b == null) return D.toast(m.round === 0 ? 'Questa coppia passa il turno' : 'Aspetta i vincitori dei turni prima');
-    const f = T.matches.filter((x) => x.phase === 'finale'), R = Math.max(...f.map((x) => x.round)) + 1;
-    const next = f.find((x) => x.round === m.round + 1 && x.pos === m.pos >> 1);
-    if (next && next.result != null) return D.toast('Il turno dopo è già stato giocato');
-    const pick = async (w) => {
-      D.closeSheet();
-      const { error } = await D.sb.from('foos_matches').update({ result: w, updated_by: me, updated_at: new Date().toISOString() }).eq('id', m.id);
-      if (error) return D.toast(D.errMsg(error));
-      if (next) await D.sb.from('foos_matches').update({ [m.pos & 1 ? 'b' : 'a']: w }).eq('id', next.id);
-      else {
-        await D.sb.from('foos_tournaments').update({ status: 'finito', champion: w }).eq('id', id);
-        D.sb.from('messages').insert({ circle_id: T.t.circle_id, user_id: me, body: `🏆 ${T.t.name}: vincono ${teamName(T, w)}!`, foos_id: id }).then(() => {});
-      }
-      reload();
-    };
-    D.openSheet(D.h('div', {}, D.h('h2', { class: 'center' }, `${roundName(m.round, R)}: chi ha vinto?`),
-      [m.a, m.b].map((w) => D.h('button', { class: 'btn block ' + (m.result === w ? '' : 'ghost'), style: 'margin-top:8px', onclick: () => pick(w) }, `🏆 ${w} · ${teamName(T, w)}`)),
-      D.h('button', { class: 'btn plain block', style: 'margin-top:6px', onclick: D.closeSheet }, 'Chiudi')));
-  }
 
-  view = { id, root, reloadSoon: () => { clearTimeout(timer); timer = setTimeout(reload, 350); } };
+  let lastCheck = 0;
+  const ticker = setInterval(() => {
+    if (!T) return;
+    for (const el of root.querySelectorAll('[data-deadline]')) el.textContent = (el.tagName === 'SPAN' ? ' · ' : '') + fmtLeft(+el.dataset.deadline - Date.now());
+    for (const el of document.querySelectorAll('.overlay [data-deadline]')) el.textContent = fmtLeft(+el.dataset.deadline - Date.now());
+    const scaduta = T.matches.some((m) => m.result == null && deadline(m) && deadline(m) < Date.now());
+    if (scaduta && Date.now() - lastCheck > 10000) {
+      lastCheck = Date.now();
+      D.sb.rpc('foos_timeouts', { p_t: id }).then(({ data }) => { if (data) D.toast('⚖️ Partita assegnata a tavolino'); reload(); });
+    }
+  }, 1000);
+  view = { id, root, stop: () => clearInterval(ticker), reloadSoon: () => { clearTimeout(timer); timer = setTimeout(reload, 350); } };
   await reload();
 }
 function closeView() {
   if (!view) return;
-  view.root.remove(); view = null; document.body.style.overflow = '';
+  view.stop?.(); view.root.remove(); view = null; document.body.style.overflow = '';
 }
