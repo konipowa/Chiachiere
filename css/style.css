@@ -483,3 +483,18 @@ button.circle-pick { position: relative; cursor: pointer; font: inherit; font-we
 .pool-teams .cg-clock { font-size: .95rem; min-width: 44px; padding: 2px 6px; }
 .pool-root .cg-top { margin-bottom: 2px; }
 .pool-msg { font-size: .85rem; }
+
+/* 🧩 PUZZLE */
+.pz-root { background: linear-gradient(180deg, #fff6ec, #f3e6d6); padding-bottom: 0; overflow: hidden; }
+.pz-bar { display: flex; align-items: center; gap: 6px; max-width: 900px; margin: 0 auto 4px; flex-wrap: wrap; }
+.pz-bar .chip { padding: 4px 10px; font-size: .85rem; }
+.pz-timer { font-variant-numeric: tabular-nums; font-size: 1.1rem; margin-left: 6px; }
+.pz-canvas { display: block; margin: 0 auto; touch-action: none; }
+.pz-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pz-th { display: flex; flex-direction: column; gap: 3px; font-size: .72rem; font-weight: 700; text-align: center; }
+.pz-thumb { width: 100%; aspect-ratio: 4/3; height: auto; border-radius: 10px; border: 3px solid transparent; cursor: pointer; display: block; }
+.pz-thumb.on { border-color: var(--brand); box-shadow: 0 0 0 2px #fff inset; }
+.pz-photo { background: #f2e9df; font-size: 2rem; }
+.pz-card-img { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.pz-score { width: 64px; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+.pz-bar { justify-content: center; flex-wrap: nowrap; }

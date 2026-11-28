@@ -1,10 +1,11 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=33';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=33';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=33';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=34';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=34';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=34';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=34';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '33';
+const VERSIONE = '34';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -108,6 +109,7 @@ sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') { cleanup(); rend
 initScacchi({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initBalilla({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initBiliardo({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
+initPuzzle({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm, todayRome, saveScore });
 boot();
 async function boot() {
   try {
@@ -425,6 +427,7 @@ function subscribe() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `circle_id=eq.${cid}` }, (p) => refreshChess(p.new.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_cheers' }, (p) => refreshChess(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pool_games', filter: `circle_id=eq.${cid}` }, (p) => refreshPool(p.new.id))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'puzzle_results' }, (p) => refreshPuzzle(p.new.msg_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pool_cheers' }, (p) => refreshPool(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_tournaments', filter: `circle_id=eq.${cid}` }, (p) => refreshTorneo(p.new?.id || p.old?.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_players' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
@@ -845,7 +848,7 @@ function appendMsg(m, scroll) {
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
   const imgUrl = m.image_path ? sb.storage.from('foto').getPublicUrl(m.image_path).data.publicUrl : null;
-  const bubble = m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
+  const bubble = m.puzzle ? puzzleChatCard(m) : m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
     : imgUrl ? h('div', { class: 'bubble photo' }, h('img', { src: imgUrl, loading: 'lazy', alt: 'foto', onclick: () => openPhoto(imgUrl),
         onload: () => { if (scroll) window.scrollTo({ top: document.body.scrollHeight }); } }), m.body ? h('div', { class: 'cap' }, m.body) : null)
     : h('div', { class: 'bubble' }, m.body);
@@ -859,6 +862,7 @@ function appendMsg(m, scroll) {
       if (error) return toast(errMsg(error));
       if (m.audio_path) sb.storage.from('audio').remove([m.audio_path]);
       if (m.image_path) sb.storage.from('foto').remove([m.image_path]);
+      if (m.puzzle?.path) sb.storage.from('foto').remove([m.puzzle.path]);
       row.remove(); toast('Messaggio eliminato');
     },
   }));
@@ -874,6 +878,7 @@ function credit(author, light) {
 const GAMES = {
   parola: { name: 'Parola del giorno', ico: '🔤', desc: 'Indovina la parola di 5 lettere in 6 tentativi.', unit: (s) => (s > 6 ? 'non trovata' : `${s}/6`) },
   riflessi: { name: 'Riflessi', ico: '⚡', desc: 'Tocca appena diventa verde. Chi è più veloce?', unit: (s) => `${s} ms` },
+  puzzle: { name: 'Puzzle del giorno', ico: '🧩', desc: '24 pezzi, la stessa immagine per tutti. Chi lo finisce prima?', unit: (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` },
 };
 async function tabGiochi(root) {
   const view = S.extraView || 'giochi';
@@ -892,7 +897,7 @@ async function tabGiochi(root) {
     const mine = scores.find((s) => s.user_id === S.me.id && s.game === key);
     const board = scores.filter((s) => s.game === key).sort((a, b) => a.score - b.score);
     root.append(h('div', { class: 'card' },
-      h('div', { class: 'game-card', onclick: () => (key === 'parola' ? gameParola() : gameRiflessi()) },
+      h('div', { class: 'game-card', onclick: () => (key === 'parola' ? gameParola() : key === 'puzzle' ? openPuzzleDaily() : gameRiflessi()) },
         h('div', { class: 'gico' }, g.ico),
         h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, g.name), h('div', { class: 'muted small' }, g.desc), credit(g.author)),
         mine ? h('span', { class: 'done-tag' }, '✓ ' + g.unit(mine.score)) : h('span', { class: 'btn small' }, 'Gioca')),
@@ -902,6 +907,13 @@ async function tabGiochi(root) {
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, g.unit(s.score)));
       })) : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato oggi.')));
   }
+  // 🧩 Puzzle
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openPuzzleMenu },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#ffe0b2,#ff8a65)' }, '🧩'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Puzzle'),
+        h('div', { class: 'muted small' }, 'Pezzi veri da incastrare, disegni sempre nuovi o le tue foto. Sfida la cerchia a chi fa prima!'), credit()),
+      h('span', { class: 'btn small' }, 'Gioca'))));
   // 🎱 Biliardo
   const tiri = await poolTurns().catch(() => 0);
   root.append(h('div', { class: 'card topo-list' },
@@ -1358,7 +1370,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=33');
+  const { startTopolini } = await import('./topolini.js?v=34');
   startTopolini({
     level,
     onWin: async (next) => {
