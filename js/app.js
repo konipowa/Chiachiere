@@ -1,11 +1,11 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=36';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=36';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=36';
-import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=36';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=37';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=37';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=37';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=37';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '36';
+const VERSIONE = '37';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -732,7 +732,7 @@ async function tabChat(root) {
     } }, '➤ Invia');
     openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📎 Manda un file'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
       h('div', { class: 'file-row', style: 'margin:12px 0' }, h('div', { class: 'file-ico' }, fileIcon(f.name, f.type)), h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, f.name), h('div', { class: 'small muted' }, fmtSize(f.size)))),
-      cap, go));
+      cap, h('p', { class: 'muted small', style: 'margin:8px 0 0' }, '⏳ I file restano sul server 60 giorni: chi li vuole tenere li salva sul telefono.'), go));
   }
   const normalBar = h('div', { class: 'inner' }, photoInput, fileInput, photoBtn, fileBtn, ta, sendBtn, micBtn);
   const recTime = h('span', { class: 'rec-time' }, '0:00');
@@ -1396,7 +1396,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=36');
+  const { startTopolini } = await import('./topolini.js?v=37');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1858,6 +1858,10 @@ function fileIcon(name = '', mime = '') {
   return '📄';
 }
 function fileBubble(m) {
+  if (m.file_gone) return h('div', { class: 'bubble file gone' },
+    h('div', { class: 'file-row' }, h('div', { class: 'file-ico' }, '⌛'),
+      h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, m.file_name), h('div', { class: 'small file-sub' }, 'File scaduto: dopo 60 giorni si toglie dal server'))),
+    m.body ? h('div', { class: 'cap' }, m.body) : null);
   return h('div', { class: 'bubble file', onclick: () => openFile(m) },
     h('div', { class: 'file-row' }, h('div', { class: 'file-ico' }, fileIcon(m.file_name, m.file_mime)),
       h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, m.file_name), h('div', { class: 'small file-sub' }, `${fmtSize(m.file_size || 0)} · tocca per aprire`))),
@@ -1880,8 +1884,15 @@ async function openFile(m) {
 async function openFilesList() {
   const box = h('div', {}, h('p', { class: 'muted center' }, 'Carico…'));
   openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📁 File della cerchia'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), box));
-  const { data } = await sb.from('messages').select('id,user_id,file_path,file_name,file_size,file_mime,body,created_at').eq('circle_id', S.circleId).not('file_path', 'is', null).order('created_at', { ascending: false }).limit(100);
+  const [{ data }, { data: spazio }] = await Promise.all([
+    sb.from('messages').select('id,user_id,file_path,file_name,file_size,file_mime,body,created_at,file_gone').eq('circle_id', S.circleId).not('file_path', 'is', null).eq('file_gone', false).order('created_at', { ascending: false }).limit(100),
+    sb.rpc('spazio_usato')]);
   const list = data || [];
+  const used = spazio?.totale || 0, pct = Math.min(100, used / (1024 * 1024 * 1024) * 100);
+  box.before(h('div', { class: 'card', style: 'margin-top:10px' },
+    h('div', { class: 'small' }, `💾 Spazio usato da tutta l'app: ${fmtSize(used)} su 1 GB`),
+    h('div', { class: 'space-bar' }, h('i', { style: `width:${Math.max(1, pct)}%;background:${pct > 80 ? '#e53935' : pct > 50 ? '#ff9800' : '#4caf50'}` })),
+    h('div', { class: 'small muted' }, '🧹 Ogni notte si fa pulizia: i file più vecchi di 60 giorni e i vocali più vecchi di un mese (sul telefono restano).')));
   fill(box, list.length ? h('div', { class: 'stack', style: 'margin-top:10px' }, list.map((m) => h('button', { class: 'cg-row', onclick: () => openFile(m) },
     h('div', { class: 'file-ico' }, fileIcon(m.file_name, m.file_mime)),
     h('div', { style: 'flex:1;min-width:0;text-align:left' }, h('b', { class: 'file-name' }, m.file_name),

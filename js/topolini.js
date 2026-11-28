@@ -2,7 +2,7 @@
 // Regole: tocchi la tana in cima a una colonna, va in uno dei 5 posti e i topolini del suo colore
 // escono a mangiare solo i blocchetti raggiungibili dall'esterno. Se riempi i 5 posti senza poter mangiare, hai perso.
 
-import { MOSAICI } from './livelli-topolini.js?v=36';
+import { MOSAICI } from './livelli-topolini.js?v=37';
 
 const SLOTS = 5;
 

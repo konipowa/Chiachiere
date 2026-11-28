@@ -516,3 +516,6 @@ button.circle-pick { position: relative; cursor: pointer; font: inherit; font-we
 .file-sub { opacity: .75; }
 .bubble.file .cap { margin-top: 6px; }
 a.btn { display: block; text-align: center; text-decoration: none; }
+.bubble.file.gone { cursor: default; opacity: .7; }
+.space-bar { height: 8px; border-radius: 99px; background: #eee3d6; overflow: hidden; margin: 6px 0; }
+.space-bar i { display: block; height: 100%; border-radius: 99px; }
