@@ -1,9 +1,9 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=28';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=28';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=29';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=29';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '28';
+const VERSIONE = '29';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -18,7 +18,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 /* ============ STATO ============ */
 const S = {
   user: null, me: null, circles: [], circleId: null, members: new Map(),
-  tab: 'oggi', channel: null, unread: 0, pending: 0, installEvt: null, feedTimer: null, sub: null,
+  tab: 'oggi', channel: null, unread: 0, unreadBy: {}, pending: 0, installEvt: null, feedTimer: null, sub: null,
 };
 
 /* ============ UTILITÀ ============ */
@@ -63,7 +63,7 @@ function avatarEl(p, size = '') {
 const person = (id) => S.members.get(id) || { username: 'Qualcuno', avatar: '🙂', color: '#ccc' };
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const inviteLink = (code) => `${location.origin}${location.pathname}?invito=${code}`;
+const inviteLink = (code) => `${location.origin}${location.pathname}?invito=${code}${S.me ? '&da=' + S.me.id : ''}`;
 function errMsg(e) {
   const m = (e && (e.message || e.error_description)) || String(e);
   if (/Invalid login credentials/i.test(m)) return 'Nome o password sbagliati.';
@@ -94,6 +94,7 @@ if ('serviceWorker' in navigator) {
   if (qs.get('argomento')) localStorage.setItem('argomento', qs.get('argomento'));
   if (qs.get('cerchia')) localStorage.setItem('cerchia', qs.get('cerchia'));
   if (qs.get('apri') || qs.get('cerchia')) history.replaceState(null, '', location.pathname + (qs.get('invito') ? '?invito=' + qs.get('invito') : ''));
+  if (qs.get('da')) localStorage.setItem('invitoDa', qs.get('da'));
   const code = qs.get('invito');
   if (code) {
     localStorage.setItem('invito', code.toUpperCase());
@@ -205,8 +206,8 @@ async function afterLogin() {
   S.me = me;
   const invite = localStorage.getItem('invito');
   if (invite) {
-    const { data: cid, error: je } = await sb.rpc('join_circle', { p_code: invite });
-    localStorage.removeItem('invito');
+    const { data: cid, error: je } = await sb.rpc('join_circle', { p_code: invite, p_from: localStorage.getItem('invitoDa') || null });
+    localStorage.removeItem('invito'); localStorage.removeItem('invitoDa');
     if (je) toast(errMsg(je)); else { localStorage.setItem('cerchia', cid); toast('Sei entrato nella cerchia! 🎉'); }
   }
   await loadCircles();
@@ -235,7 +236,7 @@ async function afterLogin() {
   syncPush();
   const apri = localStorage.getItem('apri');
   if (['chat', 'amici', 'oggi'].includes(apri)) {
-    localStorage.removeItem('apri'); S.tab = apri; if (apri === 'chat') S.unread = 0; render(); return;
+    localStorage.removeItem('apri'); S.tab = apri; if (apri === 'chat') markRead(); render(); return;
   }
   if ((apri || '').startsWith('scacchi:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openChessGame(apri.slice(8)); return;
@@ -247,6 +248,47 @@ async function afterLogin() {
     localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
   } else maybeShowInstall();
 }
+
+/* ---- cerchie e messaggi non letti ---- */
+function othersUnread() { return Object.entries(S.unreadBy || {}).filter(([id]) => id !== S.circleId).reduce((t, [, n]) => t + n, 0); }
+function pickerEl() {
+  const c = circle(), n = othersUnread();
+  return h('button', { class: 'circle-pick', onclick: openCirclePicker }, c.name, S.circles.length > 1 ? ' ▾' : '',
+    n ? h('span', { class: 'cdot' }, n > 99 ? '99+' : n) : null);
+}
+function updatePicker() { const el = document.querySelector('.circle-pick'); if (el) el.replaceWith(pickerEl()); }
+function openCirclePicker() {
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '👥 Le tue cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+    h('div', { class: 'stack', style: 'margin-top:12px' }, S.circles.map((x) => {
+      const n = x.id === S.circleId ? 0 : S.unreadBy?.[x.id] || 0;
+      return h('button', { class: 'cg-row' + (x.id === S.circleId ? ' cur' : ''), onclick: () => { closeSheet(); if (x.id !== S.circleId) { S.tab = n ? 'chat' : S.tab; openCircle(x.id); } } },
+        h('b', { style: 'flex:1;text-align:left' }, x.name), x.id === S.circleId ? h('span', { class: 'muted small' }, 'sei qui ✓') : null,
+        n ? h('span', { class: 'cdot big' }, n > 99 ? '99+' : n) : null, '›');
+    })),
+    h('button', { class: 'btn ghost block', style: 'margin-top:12px', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Altre cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '➕ Crea o entra in un\'altra cerchia')));
+}
+async function loadUnread() {
+  const { data } = await sb.rpc('unread_counts');
+  S.unreadBy = Object.fromEntries((data || []).map((r) => [r.circle_id, r.n]));
+  if (S.tab === 'chat' && document.visibilityState === 'visible') markRead();
+  else S.unread = S.unreadBy[S.circleId] || 0;
+  updateBadge(); updatePicker();
+}
+function markRead() {
+  S.unread = 0; if (S.unreadBy) S.unreadBy[S.circleId] = 0;
+  if (S.circleId) sb.rpc('mark_read', { p_circle: S.circleId }).then(() => {});
+}
+function markReadSoon() { clearTimeout(S.readTimer); S.readTimer = setTimeout(markRead, 1500); }
+function watchAllCircles() {
+  if (S.allChannel) sb.removeChannel(S.allChannel);
+  S.allChannel = sb.channel('tutte-' + S.me.id)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => {
+      const m = p.new;
+      if (m.circle_id === S.circleId || m.user_id === S.me.id) return;
+      S.unreadBy[m.circle_id] = (S.unreadBy[m.circle_id] || 0) + 1; updatePicker();
+    }).subscribe();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.me && S.circleId) loadUnread(); });
 
 async function loadCircles() {
   const { data, error } = await sb.from('circle_members').select('circle_id, circles(id,name,invite_code,owner)').eq('user_id', S.user.id);
@@ -262,12 +304,15 @@ async function openCircle(id) {
   S.members.set(S.me.id, S.me);
   subscribe();
   render();
+  loadUnread();
+  if (!S.allChannel) watchAllCircles();
 }
 const circle = () => S.circles.find((c) => c.id === S.circleId);
 
 function cleanup() {
   if (S.channel) sb.removeChannel(S.channel);
-  Object.assign(S, { user: null, me: null, circles: [], circleId: null, channel: null, unread: 0 });
+  if (S.allChannel) sb.removeChannel(S.allChannel);
+  Object.assign(S, { user: null, me: null, circles: [], circleId: null, channel: null, allChannel: null, unread: 0, unreadBy: {} });
 }
 
 /* ============ NESSUNA CERCHIA ============ */
@@ -304,10 +349,7 @@ const TABS = [['oggi', '☀️', 'Oggi'], ['chat', '💬', 'Chat'], ['giochi', '
 const badgeCount = (id) => (id === 'chat' ? S.unread : id === 'amici' ? S.pending : 0);
 function render() {
   const c = circle();
-  const picker = S.circles.length > 1
-    ? h('select', { class: 'circle-pick', onchange: (e) => openCircle(e.target.value) },
-        S.circles.map((x) => h('option', { value: x.id, selected: x.id === S.circleId }, x.name)))
-    : h('div', { class: 'circle-pick' }, c.name);
+  const picker = pickerEl();
   const content = h('div', { id: 'content' });
   const banner = !isStandalone() && !sessionStorage.getItem('noBanner')
     ? h('div', { class: 'install-bar' }, h('span', { style: 'flex:1' }, '📲 Usala come un\'app vera'),
@@ -317,7 +359,7 @@ function render() {
   const page = h('div', { class: 'page' + (S.tab === 'chat' ? ' chat-page' : '') }, banner,
     h('div', { class: 'topbar' }, h('div', { class: 'title' }, '💬 Chiacchiere'), picker), content);
   const nav = h('nav', { class: 'nav' }, h('div', { class: 'nav-inner' }, TABS.map(([id, ico, lbl]) =>
-    h('button', { class: S.tab === id ? 'on' : '', onclick: () => { S.tab = id; if (id === 'chat') S.unread = 0; render(); window.scrollTo(0, 0); } },
+    h('button', { class: S.tab === id ? 'on' : '', onclick: () => { S.tab = id; if (id === 'chat') markRead(); render(); window.scrollTo(0, 0); } },
       h('span', { class: 'ico' }, ico), lbl,
       badgeCount(id) ? h('span', { class: 'badge' }, badgeCount(id) > 9 ? '9+' : badgeCount(id)) : null))));
   $app.replaceChildren(page, nav);
@@ -330,8 +372,8 @@ function subscribe() {
   const cid = S.circleId;
   S.channel = sb.channel('cerchia-' + cid)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `circle_id=eq.${cid}` }, (p) => {
-      if (S.tab === 'chat') appendMsg(p.new, true);
-      else if (p.new.user_id !== S.me.id) { S.unread++; updateBadge(); }
+      if (S.tab === 'chat' && document.visibilityState === 'visible') { appendMsg(p.new, true); if (p.new.user_id !== S.me.id) markReadSoon(); }
+      else { if (S.tab === 'chat') appendMsg(p.new, true); if (p.new.user_id !== S.me.id) { S.unread++; S.unreadBy[cid] = S.unread; updateBadge(); } }
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (p) => {
       document.querySelector(`#chat [data-id="${p.old?.id}"]`)?.remove();
@@ -1241,7 +1283,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=28');
+  const { startTopolini } = await import('./topolini.js?v=29');
   startTopolini({
     level,
     onWin: async (next) => {

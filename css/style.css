@@ -446,3 +446,7 @@ details[open] > summary { margin-bottom: 8px; }
 .tb-badge { flex-basis: 100%; font-size: .75rem; font-weight: 700; color: var(--soft); margin-top: 2px; padding: 0 10px 6px; }
 .tb-match { flex-wrap: wrap; } .tb-match .tb-badge { padding: 0; text-align: center; }
 .tb-badge.call { color: var(--brand-dark); } .tb-badge.wait { color: #b7791f; }
+button.circle-pick { position: relative; cursor: pointer; font: inherit; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: visible; text-overflow: ellipsis; }
+.cdot { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: #e53935; color: #fff; font-size: .72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+.cdot.big { position: static; min-width: 24px; height: 24px; font-size: .8rem; box-shadow: none; }
+.cg-row.cur { border-color: var(--brand); background: var(--brand-soft); }
