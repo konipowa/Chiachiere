@@ -508,3 +508,11 @@ button.circle-pick { position: relative; cursor: pointer; font: inherit; font-we
 .cue-tip { position: absolute; left: 0; right: 0; top: 0; height: 10px; border-radius: 6px 6px 0 0; background: #2b6cb0; }
 .cue-label { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: .68rem; font-weight: 800; color: #4a3626; text-shadow: 0 1px 0 #fff; pointer-events: none; }
 .small-round { width: 40px; height: 40px; font-size: 1.1rem; }
+.bubble.file { cursor: pointer; min-width: 220px; max-width: 280px; }
+.file-row { display: flex; align-items: center; gap: 10px; }
+.file-ico { font-size: 1.9rem; width: 46px; height: 46px; border-radius: 12px; background: rgba(0,0,0,.06); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.msg.me .file-ico { background: rgba(255,255,255,.22); }
+.file-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-sub { opacity: .75; }
+.bubble.file .cap { margin-top: 6px; }
+a.btn { display: block; text-align: center; text-decoration: none; }

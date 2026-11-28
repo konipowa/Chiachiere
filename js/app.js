@@ -1,11 +1,11 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=35';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=35';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=35';
-import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=35';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=36';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=36';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=36';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=36';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '35';
+const VERSIONE = '36';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -676,7 +676,7 @@ const fmtSecs = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padSt
 
 async function tabChat(root) {
   const list = h('div', { class: 'chat', id: 'chat' }, h('p', { class: 'muted center' }, 'Carico i messaggi…'));
-  const ta = h('textarea', { class: 'input', rows: 1, placeholder: 'Scrivi un messaggio…', maxlength: 1000,
+  const ta = h('textarea', { class: 'input', rows: 1, placeholder: 'Messaggio…', maxlength: 1000,
     oninput: () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; toggleBtns(); },
     onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey && !isIOS()) { e.preventDefault(); sendMsg(); } } });
   const sendBtn = h('button', { class: 'btn round', onclick: sendMsg, 'aria-label': 'Invia' }, '➤');
@@ -712,7 +712,29 @@ async function tabChat(root) {
       h('img', { src: url, class: 'chat-photo-preview' }), cap, go));
     setTimeout(() => cap.focus(), 300);
   }
-  const normalBar = h('div', { class: 'inner' }, photoInput, photoBtn, ta, sendBtn, micBtn);
+  // --- file ---
+  const fileInput = h('input', { type: 'file', style: 'display:none', onchange: () => { const f = fileInput.files[0]; fileInput.value = ''; if (f) pickFile(f); } });
+  const fileBtn = h('button', { class: 'btn round ghost', 'aria-label': 'Manda un file', onclick: () => fileInput.click() }, '📎');
+  async function pickFile(f) {
+    if (f.size > FILE_MAX) return toast(`File troppo grande: massimo ${fmtSize(FILE_MAX)}`, 3500);
+    if (f.type.startsWith('image/')) return pickPhoto(f);
+    const cap = h('input', { class: 'input', maxlength: 1000, placeholder: 'Aggiungi un commento (se vuoi)' });
+    const go = h('button', { class: 'btn block', style: 'margin-top:10px', onclick: async () => {
+      go.disabled = true; go.textContent = 'Invio… 0%';
+      const safe = f.name.normalize('NFD').replace(/[^\w.\-]+/g, '_').slice(-80) || 'file';
+      const path = `${S.circleId}/${S.me.id}/${Date.now()}-${safe}`;
+      const up = await sb.storage.from('file').upload(path, f, { contentType: f.type || 'application/octet-stream' });
+      if (up.error) { go.disabled = false; go.textContent = '➤ Invia'; return toast(errMsg(up.error)); }
+      const { data, error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: cap.value.trim() || null,
+        file_path: path, file_name: f.name.slice(0, 200), file_size: f.size, file_mime: f.type || null }).select().single();
+      if (error) { sb.storage.from('file').remove([path]); go.disabled = false; go.textContent = '➤ Invia'; return toast(errMsg(error)); }
+      closeSheet(); appendMsg(data, true);
+    } }, '➤ Invia');
+    openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📎 Manda un file'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+      h('div', { class: 'file-row', style: 'margin:12px 0' }, h('div', { class: 'file-ico' }, fileIcon(f.name, f.type)), h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, f.name), h('div', { class: 'small muted' }, fmtSize(f.size)))),
+      cap, go));
+  }
+  const normalBar = h('div', { class: 'inner' }, photoInput, fileInput, photoBtn, fileBtn, ta, sendBtn, micBtn);
   const recTime = h('span', { class: 'rec-time' }, '0:00');
   const recBar = h('div', { class: 'inner rec', style: 'display:none' },
     h('button', { class: 'btn round ghost', 'aria-label': 'Annulla', onclick: () => stopRec(false) }, '✕'),
@@ -848,7 +870,7 @@ function appendMsg(m, scroll) {
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
   const imgUrl = m.image_path ? sb.storage.from('foto').getPublicUrl(m.image_path).data.publicUrl : null;
-  const bubble = m.puzzle ? puzzleChatCard(m) : m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
+  const bubble = m.file_path ? fileBubble(m) : m.puzzle ? puzzleChatCard(m) : m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
     : imgUrl ? h('div', { class: 'bubble photo' }, h('img', { src: imgUrl, loading: 'lazy', alt: 'foto', onclick: () => openPhoto(imgUrl),
         onload: () => { if (scroll) window.scrollTo({ top: document.body.scrollHeight }); } }), m.body ? h('div', { class: 'cap' }, m.body) : null)
     : h('div', { class: 'bubble' }, m.body);
@@ -856,13 +878,14 @@ function appendMsg(m, scroll) {
     me ? null : avatarEl(w, 'sm'),
     h('div', {}, me ? null : h('div', { class: 'who' }, w.username), bubble, h('div', { class: 'time' }, timeOf(m.created_at))));
   onLongPress(bubble, () => messageMenu({
-    text: m.body, mine: me, audioPath: m.audio_path, imageUrl: imgUrl, preview: m.audio_path ? `🎤 Vocale (${fmtSecs(m.audio_secs || 0)})` : imgUrl ? `📷 Foto${m.body ? ': ' + m.body : ''}` : m.body,
+    text: m.body, mine: me, audioPath: m.audio_path, imageUrl: imgUrl, preview: m.audio_path ? `🎤 Vocale (${fmtSecs(m.audio_secs || 0)})` : imgUrl ? `📷 Foto${m.body ? ': ' + m.body : ''}` : m.file_path ? `📎 ${m.file_name}` : m.body,
     onDelete: async () => {
       const { error } = await sb.from('messages').delete().eq('id', m.id);
       if (error) return toast(errMsg(error));
       if (m.audio_path) sb.storage.from('audio').remove([m.audio_path]);
       if (m.image_path) sb.storage.from('foto').remove([m.image_path]);
       if (m.puzzle?.path) sb.storage.from('foto').remove([m.puzzle.path]);
+      if (m.file_path) sb.storage.from('file').remove([m.file_path]);
       row.remove(); toast('Messaggio eliminato');
     },
   }));
@@ -981,6 +1004,9 @@ function tabUtilita(root) {
     h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Sondaggi'),
       h('button', { class: 'btn small', onclick: newPoll }, '➕ Nuovo')),
       h('p', { class: 'muted small', style: 'margin:4px 0 0' }, 'Dove andiamo stasera? Pizza o sushi? Decidete insieme.'), credit(), h('div', { style: 'height:8px' }), polls),
+    h('div', { class: 'card game-card', onclick: openFilesList }, h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#e3f2fd,#90caf9)' }, '📁'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'File della cerchia'), h('div', { class: 'muted small' }, 'Tutti i documenti mandati in chat, in un posto solo.'), credit()),
+      h('span', { class: 'btn small' }, 'Apri')),
     h('div', { class: 'card game-card', onclick: openTornei }, h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#d6f5d6,#8fd18f)' }, '⚽'),
       h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Torneo di calcio balilla'), h('div', { class: 'muted small' }, 'Iscrizioni, coppie portiere + attaccante, girone all\'italiana e finale.'), credit()),
       h('span', { class: 'btn small' }, 'Apri')),
@@ -1370,7 +1396,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=35');
+  const { startTopolini } = await import('./topolini.js?v=36');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1815,6 +1841,54 @@ function onLongPress(el, fn) {
   el.addEventListener('contextmenu', (e) => e.preventDefault());
   el.classList.add('pressable');
 }
+/* ---- file condivisi ---- */
+const FILE_MAX = 25 * 1024 * 1024;
+function fmtSize(b) { return b >= 1048576 ? `${(b / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(b / 1024))} KB`; }
+function fileIcon(name = '', mime = '') {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (mime.startsWith('image/')) return '🖼️';
+  if (mime.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return '🎬';
+  if (mime.startsWith('audio/') || ['mp3', 'wav', 'm4a', 'ogg'].includes(ext)) return '🎵';
+  if (ext === 'pdf') return '📕';
+  if (['doc', 'docx', 'odt', 'rtf', 'txt', 'pages'].includes(ext)) return '📝';
+  if (['xls', 'xlsx', 'ods', 'csv', 'numbers'].includes(ext)) return '📊';
+  if (['ppt', 'pptx', 'odp', 'key'].includes(ext)) return '📽️';
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return '🗜️';
+  if (['apk'].includes(ext)) return '🤖';
+  return '📄';
+}
+function fileBubble(m) {
+  return h('div', { class: 'bubble file', onclick: () => openFile(m) },
+    h('div', { class: 'file-row' }, h('div', { class: 'file-ico' }, fileIcon(m.file_name, m.file_mime)),
+      h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, m.file_name), h('div', { class: 'small file-sub' }, `${fmtSize(m.file_size || 0)} · tocca per aprire`))),
+    m.body ? h('div', { class: 'cap' }, m.body) : null);
+}
+async function openFile(m) {
+  const box = h('div', { class: 'center' }, h('p', { class: 'muted' }, 'Scarico il file…'));
+  openSheet(h('div', {}, h('div', { class: 'file-row', style: 'margin-bottom:12px' }, h('div', { class: 'file-ico' }, fileIcon(m.file_name, m.file_mime)),
+    h('div', { style: 'flex:1;min-width:0' }, h('b', { class: 'file-name' }, m.file_name), h('div', { class: 'small muted' }, `${fmtSize(m.file_size || 0)} · da ${person(m.user_id).username}`))), box));
+  const { data, error } = await sb.storage.from('file').download(m.file_path);
+  if (error || !data) return fill(box, h('p', { class: 'error' }, 'Non riesco a scaricarlo: forse è stato cancellato.'));
+  const file = new File([data], m.file_name, { type: m.file_mime || data.type || 'application/octet-stream' });
+  const url = URL.createObjectURL(file);
+  const canShare = navigator.canShare?.({ files: [file] });
+  fill(box,
+    canShare ? h('button', { class: 'btn block', onclick: async () => { try { await navigator.share({ files: [file] }); } catch (e) { if (e?.name !== 'AbortError') toast('Non riesco ad aprirlo'); } } }, '📤 Apri o salva') : null,
+    h('a', { class: 'btn block ' + (canShare ? 'ghost' : ''), style: 'margin-top:8px', href: url, download: m.file_name }, '⬇️ Scarica'),
+    /^(image\/|application\/pdf|text\/|video\/|audio\/)/.test(file.type) ? h('a', { class: 'btn plain block', style: 'margin-top:8px', href: url, target: '_blank', rel: 'noopener' }, '👁 Guarda qui') : null);
+}
+async function openFilesList() {
+  const box = h('div', {}, h('p', { class: 'muted center' }, 'Carico…'));
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📁 File della cerchia'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), box));
+  const { data } = await sb.from('messages').select('id,user_id,file_path,file_name,file_size,file_mime,body,created_at').eq('circle_id', S.circleId).not('file_path', 'is', null).order('created_at', { ascending: false }).limit(100);
+  const list = data || [];
+  fill(box, list.length ? h('div', { class: 'stack', style: 'margin-top:10px' }, list.map((m) => h('button', { class: 'cg-row', onclick: () => openFile(m) },
+    h('div', { class: 'file-ico' }, fileIcon(m.file_name, m.file_mime)),
+    h('div', { style: 'flex:1;min-width:0;text-align:left' }, h('b', { class: 'file-name' }, m.file_name),
+      h('div', { class: 'small muted' }, `${fmtSize(m.file_size || 0)} · ${person(m.user_id).username} · ${new Date(m.created_at).toLocaleDateString('it-IT')}`)), '›')))
+    : h('p', { class: 'muted center', style: 'margin-top:12px' }, 'Ancora nessun file. In chat tocca 📎 per mandarne uno.'));
+}
+
 // foto a tutto schermo
 function openPhoto(url) {
   const v = h('div', { class: 'photo-view', onclick: () => v.remove() }, h('img', { src: url, alt: 'foto' }), h('button', { class: 'topo-x', 'aria-label': 'Chiudi' }, '✕'));
