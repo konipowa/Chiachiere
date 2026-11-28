@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '20';
+const VERSIONE = '21';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -410,7 +410,7 @@ function composerCard() {
         throw error;
       }
       toast('Argomento lanciato! 🔥');
-      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🔥 Argomento di oggi: «${(body || 'foto').slice(0, 120)}» — dite la vostra in Oggi!` });
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🔥 Argomento di oggi: «${(body || 'foto').slice(0, 120)}» — dite la vostra in Oggi!` }).then(() => {});
       ta.value = ''; loadFeed(document.getElementById('feed'));
     } catch (e) { toast(errMsg(e)); send.disabled = false; send.textContent = 'Lancia'; }
   } }, '🔥 Lancia');
@@ -443,7 +443,7 @@ function deleteBtn(p) {
     if (!(await askConfirm('🗑️ Sei sicuro di volerlo cancellare?', 'Spariranno anche il sondaggio e tutte le risposte del dibattito.', 'Sì, cancella'))) return;
     const { error } = await sb.from('posts').delete().eq('id', p.id);
     if (error) return toast(errMsg(error));
-    if (p.poll_id) sb.from('polls').delete().eq('id', p.poll_id);
+    if (p.poll_id) sb.from('polls').delete().eq('id', p.poll_id).then(() => {});
     if (p.image_path) sb.storage.from('foto').remove([p.image_path]);
     toast('Argomento eliminato'); loadFeed(document.getElementById('feed'));
   } }, '🗑️') : null;
@@ -757,8 +757,20 @@ async function tabGiochi(root) {
         return h('div', { class: 'rank' }, h('div', { class: 'pos' }, ['🥇', '🥈', '🥉'][i] || i + 1), avatarEl(w, 'sm'),
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, `livello ${p.level}`)); }))
       : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato. Inizia tu!')));
-  root.append(h('div', { class: 'card game-card disabled' }, h('div', { class: 'gico' }, '🐠'),
-    h('div', {}, h('h3', { style: 'margin:0' }, "Palline d'Acquario"), h('div', { class: 'muted small' }, 'In arrivo presto, con la classifica degli amici!'))));
+  // 🐠 Palline d'Acquario (di Kamy): classifica per record di punti
+  const { data: pal } = await sb.from('game_progress').select('user_id,level').eq('game', 'palline').in('user_id', ids).order('level', { ascending: false });
+  const myBest = (pal || []).find((p) => p.user_id === S.me.id)?.level || 0;
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openPalline },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#bfeaff,#79d8f2)' }, '🐠'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, "Palline d'Acquario"),
+        h('div', { class: 'muted small' }, 'Fai cadere le palline e fondi quelle uguali, fino alla più grande.'), credit('Kamy')),
+      h('span', { class: 'btn small' }, myBest ? `🏆 ${myBest.toLocaleString('it-IT')}` : 'Gioca')),
+    (pal || []).length ? h('div', { style: 'margin-top:12px' }, h('div', { class: 'muted small', style: 'font-weight:700' }, '🏆 Record della cerchia'),
+      pal.map((p, i) => { const w = person(p.user_id);
+        return h('div', { class: 'rank' }, h('div', { class: 'pos' }, ['🥇', '🥈', '🥉'][i] || i + 1), avatarEl(w, 'sm'),
+          h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, `${p.level.toLocaleString('it-IT')} punti`)); }))
+      : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessun record ancora. Inizia tu!')));
   root.append(h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
     h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Hai fatto un gioco o un\'app?'),
       h('div', { class: 'muted small' }, 'Mandacelo! Se funziona lo aggiungiamo a Chiacchiere per tutti. Anche solo un\'idea va bene.')),
@@ -826,7 +838,7 @@ function newPoll() {
     const { error } = await sb.from('polls').insert({ circle_id: S.circleId, user_id: S.me.id, question: q.value.trim(), options });
     if (error) return (err.textContent = errMsg(error));
     closeSheet(); toast('Sondaggio creato! 📊');
-    sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `📊 Nuovo sondaggio: «${q.value.trim()}» — vota in Extra → Utilità!` });
+    sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `📊 Nuovo sondaggio: «${q.value.trim()}» — vota in Extra → Utilità!` }).then(() => {});
     loadPolls(document.getElementById('polls'));
   } },
     h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📊 Nuovo sondaggio'), h('button', { class: 'btn plain', type: 'button', onclick: closeSheet }, '✕')),
@@ -952,7 +964,7 @@ async function renderSanta(box) {
           if (!(await askConfirm('🎲 Fare l\'estrazione?', `Partecipano in ${n}. Dopo non si potrà più entrare né uscire.`, 'Estrai!'))) return openSanta();
           const { error } = await sb.rpc('santa_draw', { e: ev.id });
           if (error) { toast(errMsg(error)); return openSanta(); }
-          sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: '🎅 Estrazione fatta! Andate in Extra → Utilità → Babbo Natale segreto per scoprire a chi fate il regalo 🤫' });
+          sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: '🎅 Estrazione fatta! Andate in Extra → Utilità → Babbo Natale segreto per scoprire a chi fate il regalo 🤫' }).then(() => {});
           toast('Estrazione fatta! 🎉'); openSanta();
         } }, n < 3 ? `🎲 Estrai (servono almeno 3 persone)` : `🎲 Estrai gli abbinamenti (${n})`),
         h('button', { class: 'linkbtn small', onclick: async () => {
@@ -1028,7 +1040,7 @@ function santaCreate(box) {
       const { data, error } = await sb.from('santa_events').insert({ circle_id: S.circleId, owner: S.me.id, budget, exchange_date: date.value || null, note: note.value.trim() || null }).select('id').single();
       if (error) return (err.textContent = errMsg(error));
       await sb.from('santa_participants').insert({ event_id: data.id, user_id: S.me.id });
-      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🎅 Ho organizzato il Babbo Natale segreto! Budget ${budget} €. Partecipate? Extra → Utilità → Babbo Natale segreto` });
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🎅 Ho organizzato il Babbo Natale segreto! Budget ${budget} €. Partecipate? Extra → Utilità → Babbo Natale segreto` }).then(() => {});
       toast('Evento creato! 🎄'); renderSanta(box);
     } },
       h('div', { class: 'field' }, h('label', {}, '💶 Budget a testa'), budgets, custom),
@@ -1105,16 +1117,46 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=20');
+  const { startTopolini } = await import('./topolini.js?v=21');
   startTopolini({
     level,
     onWin: async (next) => {
       localStorage.setItem(key, next);
       await sb.from('game_progress').upsert({ user_id: S.me.id, game: 'topolini', level: next, updated_at: new Date().toISOString() });
-      if ((next - 1) % 5 === 0) sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐭 Ho finito il livello ${next - 1} di Topolini Golosi! Chi mi batte? 🧀` });
+      if ((next - 1) % 5 === 0) sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐭 Ho finito il livello ${next - 1} di Topolini Golosi! Chi mi batte? 🧀` }).then(() => {});
     },
     onClose: () => { if (S.tab === 'giochi') render(); },
   });
+}
+
+// 🐠 Palline d'Acquario gira in una finestra interna e ci manda il punteggio a fine partita
+async function openPalline() {
+  const frame = h('iframe', { class: 'game-frame', src: `giochi/palline/index.html?v=${VERSIONE}&chiacchiere=1&nick=${encodeURIComponent(S.me.username)}`, allow: 'autoplay; accelerometer; gyroscope', title: "Palline d'Acquario" });
+  const wrap = h('div', { class: 'game-wrap' },
+    h('div', { class: 'game-bar' }, h('button', { class: 'topo-x', 'aria-label': 'Chiudi', onclick: close }, '✕'),
+      h('b', { style: 'flex:1;text-align:center' }, "🐠 Palline d'Acquario"), h('div', { style: 'width:44px' })),
+    frame);
+  document.body.append(wrap); document.body.style.overflow = 'hidden';
+  async function onMsg(e) {
+    if (e.origin !== location.origin || e.source !== frame.contentWindow || e.data?.from !== 'palline') return;
+    if (e.data.type !== 'score') return;
+    const sc = Math.floor(+e.data.score || 0);
+    if (sc <= 0) return;
+    const { data: mine } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'palline').maybeSingle();
+    if (mine && mine.level >= sc) return;
+    const ids = [...S.members.keys()].filter((id) => id !== S.me.id);
+    const { data: top } = await sb.from('game_progress').select('level').eq('game', 'palline').in('user_id', ids).order('level', { ascending: false }).limit(1);
+    await sb.from('game_progress').upsert({ user_id: S.me.id, game: 'palline', level: sc, updated_at: new Date().toISOString() });
+    if (!top?.length || sc > top[0].level) {
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐠 Nuovo record della cerchia a Palline d'Acquario: ${sc.toLocaleString('it-IT')} punti! Chi mi batte?` }).then(() => {});
+    }
+  }
+  window.addEventListener('message', onMsg);
+  function close() {
+    window.removeEventListener('message', onMsg);
+    wrap.remove(); document.body.style.overflow = '';
+    if (S.tab === 'giochi') render();
+  }
 }
 
 async function saveScore(game, score, detail) {
