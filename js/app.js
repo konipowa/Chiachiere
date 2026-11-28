@@ -1,13 +1,13 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=39';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=39';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=39';
-import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=39';
-import { initSudoku, openSudokuMenu, openSudokuDaily, sudokuChatCard, refreshSudoku } from './sudoku.js?v=39';
-import { initPaese, openPaeseLobby, openPaese, paeseChatCard, refreshPaese } from './paese.js?v=39';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=40';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=40';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=40';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=40';
+import { initSudoku, openSudokuMenu, openSudokuDaily, sudokuChatCard, refreshSudoku } from './sudoku.js?v=40';
+import { initPaese, openPaeseLobby, openPaese, paeseChatCard, refreshPaese } from './paese.js?v=40';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '39';
+const VERSIONE = '40';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -1420,7 +1420,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=39');
+  const { startTopolini } = await import('./topolini.js?v=40');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1682,6 +1682,16 @@ async function tabAmici(root) {
 
   root.append(h('div', { class: 'card' }, h('h2', {}, '🔎 Trova persone'),
     h('p', { class: 'muted small' }, 'Si vede solo il nome. Nessuno entra nelle tue cerchie senza un tuo invito.'), q, results));
+  // 🌍 chi usa l'app
+  const everyone = h('div', {}, h('p', { class: 'muted small' }, 'Carico…'));
+  root.append(h('div', { class: 'card' }, h('h2', {}, '🌍 Chi usa Chiacchiere'), everyone));
+  sb.rpc('app_users').then(({ data }) => {
+    const list = (data || []).filter((p) => statusOf(p.id) !== 'friend');
+    list.forEach((p) => people.set(p.id, p));
+    list.sort((a, b) => (statusOf(b.id) === 'received') - (statusOf(a.id) === 'received'));
+    fill(everyone, list.length ? list.map((p) => personRow(p, actionFor(p.id)))
+      : h('p', { class: 'muted small', style: 'margin:0' }, 'Sei già amico di tutti quelli che usano l\'app! 🎉 Invita qualcun altro con il link.'));
+  });
 
   if (invites.length || received.length) {
     root.append(h('div', { class: 'card', style: 'border-color:var(--brand)' }, h('h2', {}, '📬 Per te'),
@@ -1714,6 +1724,34 @@ async function tabAmici(root) {
     }) : h('p', { class: 'muted small', style: 'margin:0' }, 'Ancora nessuno. Cerca un nome qui sopra!')));
 }
 
+// aggiungere alla cerchia le persone che usano già l'app (prima gli amici)
+async function addFromApp(c) {
+  const list = h('div', { class: 'stack', style: 'margin-top:10px' }, h('p', { class: 'muted small' }, 'Carico…'));
+  const q = h('input', { class: 'input', type: 'search', placeholder: 'Filtra per nome…', autocapitalize: 'none', oninput: () => draw() });
+  openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, `➕ Aggiungi a «${c.name}»`), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+    h('p', { class: 'muted small' }, 'Gli arriva un invito: entra appena lo accetta, e diventate anche amici.'), q, list));
+  const [{ data: users }, { data: fr }, { data: sent }] = await Promise.all([
+    sb.rpc('app_users'), sb.from('friendships').select('requester,addressee,status').eq('status', 'accepted'),
+    sb.from('circle_invites').select('invitee').eq('circle_id', c.id)]);
+  const friends = new Set((fr || []).map((r) => (r.requester === S.me.id ? r.addressee : r.requester)));
+  const invited = new Set((sent || []).map((r) => r.invitee));
+  const all = (users || []).filter((p) => !S.members.has(p.id)).sort((a, b) => friends.has(b.id) - friends.has(a.id) || a.username.localeCompare(b.username));
+  function draw() {
+    const t = q.value.trim().toLowerCase();
+    const show = all.filter((p) => !t || p.username.toLowerCase().includes(t));
+    fill(list, show.length ? show.map((p) => h('div', { class: 'rank' }, avatarEl(p, 'sm'),
+      h('div', { style: 'flex:1' }, h('b', {}, p.username), friends.has(p.id) ? h('div', { class: 'small muted' }, '💛 amico') : null),
+      invited.has(p.id) ? h('span', { class: 'muted small' }, 'Invitato ✓') : h('button', { class: 'btn small', onclick: async (e) => {
+        e.target.disabled = true;
+        const { error } = await sb.rpc('invite_to_circle', { c: c.id, target: p.id });
+        if (error) { e.target.disabled = false; return toast(errMsg(error)); }
+        invited.add(p.id); draw(); toast(`Invito mandato a ${p.username} 📬`);
+      } }, '➕ Invita')))
+      : h('p', { class: 'muted small center' }, all.length ? 'Nessuno con questo nome.' : 'Sono già tutti nella cerchia! Per gli altri usa il link 📤'));
+  }
+  draw();
+}
+
 /* ============ PROFILO ============ */
 function tabProfilo(root) {
   const c = circle();
@@ -1741,6 +1779,7 @@ function tabProfilo(root) {
         if (navigator.share) { try { await navigator.share({ title: 'Chiacchiere', text, url: link }); } catch {} }
         else { await navigator.clipboard.writeText(`${text} ${link}`); toast('Link copiato! Incollalo su WhatsApp 👍'); }
       } }, '📤 Invita amici'),
+      h('button', { class: 'btn ghost block', style: 'margin-top:8px', onclick: () => addFromApp(c) }, '➕ Aggiungi chi usa già l\'app'),
       h('div', { style: 'margin-top:14px' }, [...S.members.values()].map((m) => h('div', { class: 'rank' }, avatarEl(m, 'sm'),
         h('div', { style: 'flex:1;font-weight:700' }, m.username), m.id === c.owner ? h('span', { class: 'muted small' }, '👑 fondatore') : null))),
       c.owner === S.me.id ? holdButton('🗑️ Tieni premuto per cancellare la cerchia', async () => {
