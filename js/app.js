@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '21';
+const VERSIONE = '22';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -719,10 +719,11 @@ const GAMES = {
 };
 async function tabGiochi(root) {
   const view = S.extraView || 'giochi';
-  const seg = h('div', { class: 'seg' }, [['giochi', '🎮 Giochi'], ['utilita', '🧰 Utilità']].map(([k, l]) =>
+  const seg = h('div', { class: 'seg three' }, [['giochi', '🎮 Giochi'], ['storie', '📚 Storie'], ['utilita', '🧰 Utilità']].map(([k, l]) =>
     h('button', { class: view === k ? 'on' : '', onclick: () => { S.extraView = k; render(); } }, l)));
   root.append(seg);
   if (view === 'utilita') return tabUtilita(root);
+  if (view === 'storie') return tabStorie(root);
   const today = todayRome();
   const ids = [...S.members.keys()];
   const { data } = await sb.from('game_scores').select('user_id,game,score').eq('day', today).in('user_id', ids);
@@ -771,6 +772,12 @@ async function tabGiochi(root) {
         return h('div', { class: 'rank' }, h('div', { class: 'pos' }, ['🥇', '🥈', '🥉'][i] || i + 1), avatarEl(w, 'sm'),
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, `${p.level.toLocaleString('it-IT')} punti`)); }))
       : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessun record ancora. Inizia tu!')));
+  // ⚔️ Valdorìa Online: gioco esterno di Kamy, si apre nel suo sito
+  root.append(h('div', { class: 'card game-card', onclick: () => window.open('https://valdoria-1.onrender.com', '_blank', 'noopener') },
+    h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#e3d6ff,#b9a3f0)' }, '⚔️'),
+    h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Valdorìa Online'),
+      h('div', { class: 'muted small' }, 'Il gioco di ruolo online a carte. Si apre nel suo sito: la prima volta può metterci fino a un minuto a svegliarsi.'), credit('Kamy')),
+    h('span', { class: 'btn small ghost' }, 'Apri ↗')));
   root.append(h('div', { class: 'card game-card', onclick: openProposte }, h('div', { class: 'gico' }, '📮'),
     h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Hai fatto un gioco o un\'app?'),
       h('div', { class: 'muted small' }, 'Mandacelo! Se funziona lo aggiungiamo a Chiacchiere per tutti. Anche solo un\'idea va bene.')),
@@ -1117,7 +1124,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=21');
+  const { startTopolini } = await import('./topolini.js?v=22');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1129,34 +1136,93 @@ async function openTopolini() {
   });
 }
 
-// 🐠 Palline d'Acquario gira in una finestra interna e ci manda il punteggio a fine partita
-async function openPalline() {
-  const frame = h('iframe', { class: 'game-frame', src: `giochi/palline/index.html?v=${VERSIONE}&chiacchiere=1&nick=${encodeURIComponent(S.me.username)}`, allow: 'autoplay; accelerometer; gyroscope', title: "Palline d'Acquario" });
-  const wrap = h('div', { class: 'game-wrap' },
+// giochi e storie "esterni" girano in una finestra interna e ci mandano i risultati con postMessage
+function openFrame({ src, title, bg, from, onMessage }) {
+  const frame = h('iframe', { class: 'game-frame', src, allow: 'autoplay; accelerometer; gyroscope', title });
+  const wrap = h('div', { class: 'game-wrap', style: bg ? `background:${bg}` : '' },
     h('div', { class: 'game-bar' }, h('button', { class: 'topo-x', 'aria-label': 'Chiudi', onclick: close }, '✕'),
-      h('b', { style: 'flex:1;text-align:center' }, "🐠 Palline d'Acquario"), h('div', { style: 'width:44px' })),
+      h('b', { style: 'flex:1;text-align:center' }, title), h('div', { style: 'width:44px' })),
     frame);
   document.body.append(wrap); document.body.style.overflow = 'hidden';
-  async function onMsg(e) {
-    if (e.origin !== location.origin || e.source !== frame.contentWindow || e.data?.from !== 'palline') return;
-    if (e.data.type !== 'score') return;
-    const sc = Math.floor(+e.data.score || 0);
-    if (sc <= 0) return;
-    const { data: mine } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'palline').maybeSingle();
-    if (mine && mine.level >= sc) return;
-    const ids = [...S.members.keys()].filter((id) => id !== S.me.id);
-    const { data: top } = await sb.from('game_progress').select('level').eq('game', 'palline').in('user_id', ids).order('level', { ascending: false }).limit(1);
-    await sb.from('game_progress').upsert({ user_id: S.me.id, game: 'palline', level: sc, updated_at: new Date().toISOString() });
-    if (!top?.length || sc > top[0].level) {
-      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐠 Nuovo record della cerchia a Palline d'Acquario: ${sc.toLocaleString('it-IT')} punti! Chi mi batte?` }).then(() => {});
-    }
-  }
+  const onMsg = (e) => {
+    if (e.origin !== location.origin || e.source !== frame.contentWindow || e.data?.from !== from) return;
+    onMessage?.(e.data);
+  };
   window.addEventListener('message', onMsg);
   function close() {
     window.removeEventListener('message', onMsg);
     wrap.remove(); document.body.style.overflow = '';
     if (S.tab === 'giochi') render();
   }
+}
+
+// 🐠 Palline d'Acquario: a fine partita ci manda il punteggio
+function openPalline() {
+  openFrame({
+    src: `giochi/palline/index.html?v=${VERSIONE}&chiacchiere=1&nick=${encodeURIComponent(S.me.username)}`,
+    title: "🐠 Palline d'Acquario", bg: '#06304f', from: 'palline',
+    onMessage: async (d) => {
+      if (d.type !== 'score') return;
+      const sc = Math.floor(+d.score || 0);
+      if (sc <= 0) return;
+      const { data: mine } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'palline').maybeSingle();
+      if (mine && mine.level >= sc) return;
+      const ids = [...S.members.keys()].filter((id) => id !== S.me.id);
+      const { data: top } = await sb.from('game_progress').select('level').eq('game', 'palline').in('user_id', ids).order('level', { ascending: false }).limit(1);
+      await sb.from('game_progress').upsert({ user_id: S.me.id, game: 'palline', level: sc, updated_at: new Date().toISOString() });
+      if (!top?.length || sc > top[0].level) {
+        sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: `🐠 Nuovo record della cerchia a Palline d'Acquario: ${sc.toLocaleString('it-IT')} punti! Chi mi batte?` }).then(() => {});
+      }
+    },
+  });
+}
+
+/* ============ STORIE (audio-libri game di Kamy) ============ */
+const STORIE = [
+  { id: 'bora', titolo: 'Il Carico della Bora', sopra: 'Trieste, 1910', ico: '🌬️', bg: '#1d2430', finali: 17,
+    desc: "Un'indagine del Detective Kamy tra il porto e le raffiche di bora." },
+  { id: 'moretta', titolo: 'La Moretta', sopra: 'Venezia, novembre 1991', ico: '🎭', bg: '#1a1620', finali: 12,
+    desc: "Tre morti, una maschera muta, una città che affonda nella nebbia. L'ispettrice Giulia Sartori dà la caccia a un'assassina." },
+  { id: 'valdaria', titolo: 'Ritorno a Valdaria', sopra: 'Appennino emiliano, ottobre 1978', ico: '🏚️', bg: '#161a16', finali: 7,
+    desc: 'Sette pazienti dimessi dal manicomio non sono mai arrivati a casa. Il giornalista Matteo Lanza sale lassù per un giorno.' },
+  { id: 'viaggio1911', titolo: 'Il viaggio di Baciccia', sopra: 'Italia, 1911', ico: '🚂', bg: '#241d14', finali: 28,
+    desc: 'Manarola, notte del XX Settembre: venti città da attraversare in treno con poche lire in tasca.' },
+];
+async function tabStorie(root) {
+  const ids = [...S.members.keys()];
+  const { data } = await sb.from('game_progress').select('user_id,game,level').like('game', 'storia-%').in('user_id', ids);
+  root.append(h('div', { class: 'card hero' }, h('h2', {}, '📚 Storie da ascoltare'),
+    h('p', { style: 'margin:0' }, 'Audio-libri game: ascolti la storia e decidi tu come va avanti. Ogni scelta può portare a un finale diverso.')));
+  for (const st of STORIE) {
+    const readers = (data || []).filter((r) => r.game === 'storia-' + st.id).sort((a, b) => b.level - a.level);
+    const mine = readers.find((r) => r.user_id === S.me.id)?.level || 0;
+    root.append(h('div', { class: 'card topo-list' },
+      h('div', { class: 'game-card', onclick: () => openStoria(st) },
+        h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#efe3d0,#d8c4a6)' }, st.ico),
+        h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, st.titolo),
+          h('div', { class: 'muted small' }, st.sopra), credit('Kamy')),
+        h('span', { class: 'btn small' }, mine ? `${mine}/${st.finali}` : 'Ascolta')),
+      h('p', { class: 'small', style: 'margin:10px 0 0' }, st.desc),
+      readers.length ? h('div', { class: 'row wrap', style: 'gap:6px;margin-top:10px' }, readers.map((r) => {
+        const w = person(r.user_id);
+        return h('span', { class: 'santa-who' }, avatarEl(w, 'sm'), `${w.username} · ${r.level}/${st.finali} finali`);
+      })) : h('p', { class: 'muted small', style: 'margin:8px 0 0' }, 'Nessuno della cerchia l\'ha ancora finita.')));
+  }
+}
+function openStoria(st) {
+  openFrame({
+    src: `giochi/storie/${st.id}/index.html?v=${VERSIONE}&chiacchiere=1`,
+    title: `${st.ico} ${st.titolo}`, bg: st.bg, from: 'storia',
+    onMessage: async (d) => {
+      if (d.type !== 'finale' || !d.nuovo) return;
+      const game = 'storia-' + st.id, n = Math.max(1, Math.floor(+d.trovati || 1)), tot = Math.floor(+d.totali || st.finali);
+      const { data: mine } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', game).maybeSingle();
+      if (mine && mine.level >= n) return;
+      await sb.from('game_progress').upsert({ user_id: S.me.id, game, level: n, updated_at: new Date().toISOString() });
+      sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id,
+        body: n >= tot ? `📚 Ho scoperto TUTTI i ${tot} finali di «${st.titolo}»! 🏆` : `📚 Ho trovato un nuovo finale di «${st.titolo}» (${n} su ${tot}). Chi la prova?` }).then(() => {});
+    },
+  });
 }
 
 async function saveScore(game, score, detail) {

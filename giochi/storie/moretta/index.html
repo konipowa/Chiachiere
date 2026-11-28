@@ -1,0 +1,2441 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1820">
+<title>La Moretta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+Double+Pica:ital@0;1&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&amp;family=Courier+Prime:wght@400;700&amp;display=swap">
+<style>
+/* Layout: una colonna di lettura stretta come un taccuino, su un cielo notturno dell'Adriatico;
+   l'unico gesto forte è la schermata del titolo con la bora animata e il fascio della Lanterna. */
+:root {
+  --notte: #0e1820;        /* cielo d'inverno sul golfo */
+  --notte-2: #15232d;      /* superfici, fogli sovrapposti */
+  --notte-3: #1e3240;      /* bordi, pulsanti a riposo */
+  --carta: #ece2cc;        /* testo: carta di giornale del 1910 */
+  --carta-2: #b9ae98;      /* testo secondario */
+  --gas: #e6a64b;          /* luce dei lampioni a gas, accento */
+  --gas-scuro: #9c6b26;
+  --ruggine: #c2553b;      /* pericolo, ferite */
+  --salmastro: #7fa4a6;    /* verde-grigio del mare, indizi */
+  --display: "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
+  --testo: "Literata", "Iowan Old Style", Georgia, serif;
+  --macchina: "Courier Prime", "Courier New", ui-monospace, monospace;
+  --s1: .8125rem; --s2: .9375rem; --s3: 1.0625rem; --s4: 1.375rem; --s5: 2rem; --s6: clamp(2.6rem, 9vw, 4.6rem);
+  --su-accento: #0e1820;
+  color-scheme: dark;
+}
+:root { --notte:#0c1211; --notte-2:#131b1a; --notte-3:#24302e; --carta:#e4e1da; --carta-2:#9ea39b; --gas:#c4473b; --gas-scuro:#7d2a23; --su-accento:#f6eee8; --salmastro:#86a39b; --ruggine:#d8604f; --display:"IM Fell Double Pica","Iowan Old Style",Georgia,serif;  }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--notte); color: var(--carta); font-family: var(--testo); font-size: var(--s3); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--gas); outline-offset: 3px; }
+
+/* ---------------------------------------------------------------- titolo */
+#titolo { position: relative; min-height: 100%; display: grid; place-items: end center; overflow: hidden; }
+#cielo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.frontespizio { position: relative; z-index: 1; width: 100%; max-width: 34rem; padding: 0 16px calc(2.5rem + env(safe-area-inset-bottom, 0px)); display: grid; gap: 1.1rem; text-align: left; }
+.frontespizio .sopra { font-family: var(--macchina); font-size: var(--s1); letter-spacing: .18em; text-transform: uppercase; color: var(--gas); }
+.frontespizio h1 { margin: 0; font-family: var(--display); font-weight: 500; font-style: italic; font-size: var(--s6); line-height: .95; letter-spacing: -.01em; text-wrap: balance; }
+.frontespizio h1 b { display: block; font-style: normal; font-weight: 700; letter-spacing: .02em; }
+.frontespizio .sotto { margin: 0; color: var(--carta-2); font-size: var(--s2); max-width: 30rem; }
+.azioni { display: flex; flex-wrap: wrap; gap: .6rem; }
+.btn { border: 1px solid var(--notte-3); background: var(--notte-2); border-radius: 2px; padding: .7rem 1.1rem; cursor: pointer; font-family: var(--macchina); font-size: var(--s2); letter-spacing: .04em; transition: border-color .2s, background .2s; }
+.btn:hover { border-color: var(--gas-scuro); }
+.btn.primo { background: var(--gas); color: var(--su-accento); border-color: var(--gas); font-weight: 700; }
+.btn.primo:hover { filter: brightness(1.1); }
+.nota { font-family: var(--macchina); font-size: var(--s1); color: var(--carta-2); display: flex; gap: .5rem; align-items: center; }
+.nota svg { flex: none; }
+
+/* ---------------------------------------------------------------- gioco */
+#gioco { min-height: 100%; display: flex; flex-direction: column; }
+.testata { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--notte) 88%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-bottom: 1px solid var(--notte-3); }
+.testata-in { max-width: 40rem; margin: 0 auto; padding: .55rem 16px; display: flex; align-items: center; gap: .75rem; }
+.testata .nome { font-family: var(--display); font-style: italic; font-size: var(--s3); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.salute { display: flex; gap: 3px; }
+.salute i { width: 11px; height: 15px; display: block; border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%; background: var(--gas); box-shadow: 0 0 8px rgba(230,166,75,.55); }
+.salute i.spenta { background: var(--notte-3); box-shadow: none; }
+.ico { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid transparent; background: none; border-radius: 2px; cursor: pointer; color: var(--carta-2); }
+.ico:hover { color: var(--carta); border-color: var(--notte-3); }
+.ico[aria-pressed="false"] { opacity: .5; }
+
+.foglio { flex: 1; width: 100%; max-width: 40rem; margin: 0 auto; padding: 1.6rem 16px 7rem; }
+.par { font-family: var(--macchina); font-size: var(--s1); color: var(--gas); letter-spacing: .12em; margin-bottom: 1rem; display: flex; align-items: center; gap: .7rem; }
+.par::after { content: ""; flex: 1; height: 1px; background: var(--notte-3); }
+.racconto { display: grid; gap: .85rem; }
+.racconto p { margin: 0; max-width: 65ch; transition: color .4s; }
+.racconto p.letto { color: var(--carta-2); }
+.racconto p.ora { color: var(--carta); }
+.racconto p.battuta { padding-left: .9rem; border-left: 2px solid var(--colore, var(--notte-3)); }
+.chi { display: block; font-family: var(--macchina); font-size: var(--s1); letter-spacing: .1em; text-transform: uppercase; color: var(--colore, var(--carta-2)); margin-bottom: .1rem; }
+.racconto.entra p { animation: entra .6s both; }
+@keyframes entra { from { opacity: .0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.voce-ctl { margin-top: 1.4rem; display: flex; gap: .5rem; align-items: center; font-family: var(--macchina); font-size: var(--s1); color: var(--carta-2); }
+.voce-ctl button { border: 1px solid var(--notte-3); background: none; border-radius: 2px; padding: .35rem .7rem; cursor: pointer; display: inline-flex; gap: .4rem; align-items: center; }
+.voce-ctl button:hover { border-color: var(--gas-scuro); color: var(--carta); }
+
+.scelte { margin-top: 1.8rem; display: grid; gap: .6rem; }
+.scelta { display: grid; grid-template-columns: 2.1rem 1fr; align-items: start; gap: .5rem; text-align: left; width: 100%; background: var(--notte-2); border: 1px solid var(--notte-3); border-radius: 2px; padding: .8rem .9rem .8rem .6rem; cursor: pointer; font-family: var(--testo); font-size: var(--s3); line-height: 1.45; transition: border-color .2s, transform .15s; }
+.scelta:hover { border-color: var(--gas); }
+.scelta:active { transform: translateY(1px); }
+.scelta .n { font-family: var(--macchina); color: var(--gas); font-weight: 700; text-align: center; padding-top: .05rem; }
+.scelta.continua { grid-template-columns: 1fr; text-align: center; font-family: var(--macchina); letter-spacing: .08em; }
+
+/* finale */
+.fine { padding-top: 1rem; display: grid; gap: 1rem; }
+.fine .timbro { font-family: var(--display); font-size: var(--s6); font-style: italic; line-height: 1; color: var(--gas); }
+.fine h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: var(--s5); line-height: 1.1; text-wrap: balance; }
+.tipo { justify-self: start; font-family: var(--macchina); font-size: var(--s1); letter-spacing: .12em; text-transform: uppercase; padding: .2rem .55rem; border: 1px solid currentColor; border-radius: 2px; }
+.tipo.vero { color: var(--gas); } .tipo.falso { color: var(--salmastro); } .tipo.romance { color: #e88fa2; } .tipo.morte { color: var(--ruggine); } .tipo.segreto { color: #b79ce8; }
+.conteggio { font-family: var(--macchina); font-size: var(--s2); color: var(--carta-2); display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- pannelli */
+.velo { position: fixed; inset: 0; z-index: 20; background: rgba(5,10,14,.6); display: flex; justify-content: center; align-items: flex-end; }
+.pannello { width: 100%; max-width: 40rem; max-height: 86%; overflow: auto; background: var(--notte-2); border: 1px solid var(--notte-3); border-bottom: 0; border-radius: 4px 4px 0 0; padding: 1.2rem 16px calc(1.5rem + env(safe-area-inset-bottom, 0px)); }
+.pannello header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+.pannello h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 500; font-size: var(--s4); }
+.pannello h3 { margin: 1.4rem 0 .6rem; font-family: var(--macchina); font-size: var(--s1); letter-spacing: .14em; text-transform: uppercase; color: var(--gas); font-weight: 400; }
+.lista { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }
+.lista li { display: grid; gap: .1rem; padding-bottom: .7rem; border-bottom: 1px dashed var(--notte-3); }
+.lista li:last-child { border-bottom: 0; }
+.lista b { font-weight: 600; }
+.lista small { color: var(--carta-2); font-size: var(--s2); line-height: 1.5; }
+.lista .indizio { font-style: italic; }
+.vuoto { color: var(--carta-2); font-size: var(--s2); font-style: italic; margin: 0; }
+.finali { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .5rem; }
+.finali div { font-size: var(--s2); padding: .5rem .6rem; border: 1px solid var(--notte-3); border-radius: 2px; display: grid; gap: .15rem; min-width: 0; }
+.finali div span { font-family: var(--macchina); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+.finali .ignoto { color: var(--carta-2); }
+.campo { display: grid; gap: .3rem; margin-bottom: .9rem; }
+.campo label { font-family: var(--macchina); font-size: var(--s1); color: var(--carta-2); }
+.campo select, .campo input[type=range] { width: 100%; }
+.campo select { background: var(--notte); color: var(--carta); border: 1px solid var(--notte-3); border-radius: 2px; padding: .5rem; font: inherit; font-size: var(--s2); }
+.campo input[type=range] { accent-color: var(--gas); }
+.interruttore { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-bottom: 1px dashed var(--notte-3); font-size: var(--s2); }
+.interruttore input { width: 1.2rem; height: 1.2rem; accent-color: var(--gas); flex: none; }
+.piccolo { font-size: var(--s1); color: var(--carta-2); line-height: 1.55; }
+.menu-voci { display: grid; gap: .5rem; }
+.menu-voci .btn { text-align: left; }
+
+/* avvisi */
+#avvisi { position: fixed; left: 0; right: 0; top: calc(4.2rem + env(safe-area-inset-top, 0px)); z-index: 15; display: grid; justify-items: center; gap: .4rem; pointer-events: none; padding: 0 16px; }
+.avviso { width: min(30rem, 100%); background: var(--notte-2); border: 1px solid var(--notte-3); border-left: 3px solid var(--gas); padding: .55rem .8rem; font-size: var(--s2); box-shadow: 0 6px 20px rgba(0,0,0,.4); animation: avviso 4.2s both; }
+.avviso.indizio { border-left-color: var(--salmastro); }
+.avviso.ferita { border-left-color: var(--ruggine); }
+.avviso small { display: block; font-family: var(--macchina); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--carta-2); }
+@keyframes avviso { 0% { opacity: 0; transform: translateY(8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.lampo { position: fixed; inset: 0; z-index: 25; pointer-events: none; background: var(--ruggine); animation: lampo .6s both; }
+@keyframes lampo { from { opacity: .35; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
+
+/* telefono: la barra in alto va a capo invece di uscire dallo schermo */
+@media (max-width: 480px) {
+  .testata-in { gap: .4rem; padding: .45rem 10px; flex-wrap: wrap; }
+  .stato { flex: 1 1 100%; order: 3; flex-wrap: wrap; gap: .15rem .7rem; white-space: normal; }
+  html, body { overflow-x: hidden; }
+}
+</style>
+
+<main id="titolo">
+  <canvas id="cielo" aria-hidden="true"></canvas>
+  <div class="frontespizio">
+    <div class="sopra">Audio-libro game · Venezia, novembre 1991</div>
+    <h1>La <b>Moretta</b></h1>
+    <p class="sotto">Tre morti, una maschera muta, una città che affonda nella nebbia. L&#x27;ispettrice Giulia Sartori dà la caccia a un&#x27;assassina che lascia sempre lo stesso segno. Il guaio è che ogni traccia porta a lei. E lei non ricorda dov&#x27;era.</p>
+    <div class="azioni">
+      <button class="btn primo" id="b-nuova" type="button">Nuova partita</button>
+      <button class="btn" id="b-continua" type="button" hidden>Continua la partita</button>
+      <button class="btn" id="b-finali" type="button">Finali scoperti</button>
+    </div>
+    <div class="nota"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="5" height="7" rx="1.5"/><rect x="17" y="14" width="5" height="7" rx="1.5"/></svg>Meglio con le cuffie. Voce e rumori si regolano dal menu.</div>
+  </div>
+</main>
+
+<div id="gioco" hidden>
+  <header class="testata">
+    <div class="testata-in">
+      <div class="nome">La Moretta</div>
+      <div class="salute" id="salute" aria-label="Salute"></div>
+      <button class="ico" id="b-taccuino" type="button" aria-label="Taccuino">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 17a2 2 0 0 1 2-2h12"/><path d="M9 7h6M9 10h4"/></svg>
+      </button>
+      <button class="ico" id="b-voce" type="button" aria-label="Voce narrante" aria-pressed="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+      <button class="ico" id="b-menu" type="button" aria-label="Menu e impostazioni">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </header>
+  <section class="foglio" id="foglio" aria-live="polite"></section>
+</div>
+
+<div class="velo" id="velo" hidden>
+  <div class="pannello" id="pannello" role="dialog" aria-modal="true"></div>
+</div>
+<div id="avvisi" aria-live="polite"></div>
+
+<script type="text/plain" id="storia"># =====================================================================
+#  LA MORETTA — audio-libro game thriller horror
+# =====================================================================
+
+@titolo La Moretta
+@riga1 La
+@riga2 Moretta
+@sopra Audio-libro game · Venezia, novembre 1991
+@descrizione Tre morti, una maschera muta, una città che affonda nella nebbia. L'ispettrice Giulia Sartori dà la caccia a un'assassina che lascia sempre lo stesso segno. Il guaio è che ogni traccia porta a lei. E lei non ricorda dov'era.
+@sottotitolo Un'indagine dell'ispettrice Giulia Sartori · Venezia, 1991
+@scena laguna
+@protagonista GIULIA
+@inizio inizio
+@morte morte_ferite
+@fonts https://fonts.googleapis.com/css2?family=IM+Fell+Double+Pica:ital@0;1&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Courier+Prime:wght@400;700&display=swap
+@css --notte:#0c1211; --notte-2:#131b1a; --notte-3:#24302e; --carta:#e4e1da; --carta-2:#9ea39b; --gas:#c4473b; --gas-scuro:#7d2a23; --su-accento:#f6eee8; --salmastro:#86a39b; --ruggine:#d8604f; --display:"IM Fell Double Pica","Iowan Old Style",Georgia,serif;
+
+@tipofinale follia = Finale della follia | #b79ce8
+@tipofinale manicomio = Finale del manicomio | #86a39b
+@tipofinale segreto = Finale segreto | #e6c27a
+@tipofinale morte = Morte | #d8604f
+
+@prova NARRATORE = La nebbia sale dalla laguna e si mangia i lampioni uno alla volta.
+@prova GIULIA = Sono l'ispettrice Sartori. Polizia di Stato.
+@prova MARCO = Giulia, sei pallida. Hai dormito?
+@prova VOCE = Lei non sa niente. Lei ha avuto tutto.
+
+@var salute 3
+@var ombra 0
+@var sospetto 0
+@var fiducia 0
+@var specchio 0
+@var visite 0
+@max salute 3
+
+@iniziale pistola
+@iniziale tesserino
+
+@oggetto pistola = Beretta d'ordinanza | Calibro nove. Non l'hai mai usata fuori dal poligono.
+@oggetto tesserino = Tesserino della Polizia | «Ispettrice Giulia Sartori, Questura di Venezia». La foto ha dieci anni.
+@oggetto chiavetta = Chiavetta d'ottone | Piccola, a farfalla. La chiave per caricare un carillon.
+@oggetto nastro = Audiocassetta | Etichetta scritta a mano: «G. S., seduta, giovedì 7/11, ore 18».
+@oggetto foto = Fotografia dell'adozione | Tua madre, giovane, con una neonata in braccio. Dietro di lei, una suora.
+@oggetto registro = Pagina strappata | Un foglio del registro delle Zitelle, 1957. Metà è stata strappata via.
+@oggetto chiavi_agnese = Mazzo di chiavi | Le chiavi di suor Agnese. Le hai prese senza chiedere.
+@oggetto maschera = Moretta | Ovale di velluto nero, senza bocca. Si tiene con un bottone stretto tra i denti.
+
+# Gli indizi che contano per la verità alzano anche il contatore "specchio".
+@indizio scarpe_bagnate = Ti sei svegliata vestita, con le scarpe fradice e il cappotto rosso bagnato. Non ricordi niente dopo le nove di sera.
+@indizio gocce = Il flacone delle gocce per dormire ha un tappo diverso da quello della farmacia. Qualcuno l'ha sostituito.
+@indizio mancina = Il taglio sulla gola va da destra a sinistra. Chi ha ucciso usa la mano sinistra. Tu sei destra.
+@indizio neo = Il gondoliere ha visto la donna in rosso con un neo sotto l'occhio destro. Il tuo è sotto il sinistro.
+@indizio telefonata = Bernardi dice che una settimana fa lo hai chiamato alle due di notte, con una voce che non era la tua.
+@indizio nastro_data = La seduta registrata da Bernardi è di giovedì alle sei di sera. A quell'ora eri in questura con Marco, c'è il verbale firmato.
+@indizio chiavi_porta = Alle tre di notte qualcuno ha provato ad aprire la porta di casa tua con una chiave.
+@indizio sangue = Ti sei risvegliata in una calle allagata, con la manica del cappotto sporca di sangue.
+@indizio riflesso = Nello specchio di casa Zanon il tuo riflesso si è mosso prima di te.
+@indizio visita = Tua madre giura che martedì sei andata da lei. Martedì eri a Padova, a un corso, tutto il giorno.
+@indizio culle = Nella foto dell'adozione, dietro la suora, ci sono due culle. Non una.
+@indizio ninnananna = La ninna nanna del nastro la cantavano alle bambine delle Zitelle. Tu non l'hai mai sentita prima.
+@indizio cappotto = Al negozio di Rialto risultano due cappotti rossi identici, comprati lo stesso giorno. Tu ne hai comprato uno solo.
+@indizio videocassetta = Nella videocassetta, alle 2.13, una mano entra nell'inquadratura e spegne la telecamera. Tu eri nel letto.
+@indizio gemelle_ines = Ines, a San Clemente, ricorda due neonate gemelle alle Zitelle, nel 1957. Una adottata, l'altra rimasta.
+@indizio specchiata = Il biglietto è scritto a specchio, come lo scriverebbe un mancino che vuole nascondersi.
+
+@finale follia_specchio = Due nello specchio | follia
+@finale follia_maschera = La Moretta | follia
+@finale manicomio_sc = San Clemente | manicomio
+@finale manicomio_verbale = Il verbale | manicomio
+@finale manicomio_ripresa = La nebbia riporta indietro | manicomio
+@finale segreto_gemelle = Le gemelle | segreto
+@finale segreto_una = Una sola Giulia | segreto
+@finale segreto_posto = Il posto vuoto | morte
+@finale morte_calle = Il sottoportego | morte
+@finale morte_acqua = Acqua alta | morte
+@finale morte_laguna = La laguna | morte
+@finale morte_ferite = Le ferite | morte
+
+@voce NARRATORE = maschile | 0.9 | 0.96 | #a9b0a6 | Narratore
+@voce GIULIA = femminile | 0.98 | 0.98 | #e2cdb8 | Giulia
+@voce VOCE = femminile | 0.72 | 0.82 | #a98bbd | La voce
+@voce LIVIA = femminile | 0.84 | 0.9 | #d8604f | Livia
+@voce MARCO = maschile | 1.0 | 1.0 | #8fb3c9 | Marco Dal Ben
+@voce FERRARESI = maschile | 0.72 | 0.94 | #c9a98f | Commissario Ferraresi
+@voce PAVAN = maschile | 0.92 | 1.06 | #a8c98f | Dottor Pavan
+@voce BERNARDI = maschile | 0.82 | 0.9 | #b0a89f | Dottor Bernardi
+@voce GONDOLIERE = maschile | 0.78 | 1.0 | #9fb0a8 | Bepi, gondoliere
+@voce AGNESE = femminile | 0.8 | 0.82 | #c9c18f | Suor Agnese
+@voce RITA = femminile | 0.9 | 0.95 | #e0a458 | Rita, tua madre
+@voce GRITTI = maschile | 1.05 | 1.0 | #b79ce8 | Avvocato Gritti
+@voce INES = femminile | 0.86 | 0.88 | #b9b0a0 | Ines
+@voce INFERMIERA = femminile | 1.05 | 0.95 | #c9a98f | Infermiera Teresa
+@voce COMMESSA = femminile | 1.12 | 1.06 | #c9b48a | La commessa
+
+# =====================================================================
+#  TRONCO COMUNE
+# =====================================================================
+
+== inizio
+! ambiente appartamento_notte
+! suono telefono
+Il telefono squilla nel buio. Squilla, squilla. E da fuori, sopra il rumore della pioggia, sale il lamento lungo della sirena dell'acqua alta.
+Apri gli occhi. Sei sul divano, non a letto. Sei vestita. Hai ancora le scarpe ai piedi, e sono fradice. La sveglia sul tavolino dice 4.10.
+L'ultima cosa che ricordi è il telegiornale delle otto. Poi niente. Un buco nero di otto ore.
+Rispondi.
+MARCO: Giulia, sono Marco. Scusa l'ora. Hanno trovato una donna alle Zattere, dentro una gondola. Ferraresi vuole che vieni. E Giulia... ha una maschera in bocca.
+-> «Arrivo subito.» Prendi la giacca ed esci => zattere
+-> Prima di uscire, ti guardi intorno: perché hai le scarpe bagnate? => casa_mattino
+
+== casa_mattino
+! ambiente appartamento_notte
+! suono interruttore
+Accendi la luce. Il tuo cappotto rosso è appeso alla porta, e sgocciola. Sotto, una piccola pozza d'acqua salmastra. Sul pavimento, impronte bagnate che vanno dalla porta al divano. Le tue scarpe. La tua misura.
+Sul comodino c'è il flacone delle gocce per dormire che ti ha prescritto il dottor Bernardi. Ieri era pieno. Ora è a metà.
+! indizio scarpe_bagnate
+! ombra +1
+-> Prendi in mano il flacone e lo guardi meglio => casa_gocce
+-> Non hai tempo. Vai alle Zattere => zattere
+
+== casa_gocce
+! suono vetro
+Lo giri tra le dita sotto la lampada. L'etichetta è quella della farmacia di San Barnaba, con il tuo nome. Ma il tappo è sbagliato: è nero, liscio. Quello della farmacia è bianco, a righine. Lo sai perché lo apri ogni sera da sei mesi.
+Lo annusi. Odore amaro, quasi metallico. Le tue gocce sapevano di anice.
+Qualcuno è entrato in casa tua e ti ha cambiato le gocce. Oppure sei stata tu, e non lo ricordi.
+! indizio gocce
+! specchio +1
+-> Infili il flacone in tasca e vai alle Zattere => zattere
+
+== zattere
+! ambiente laguna_notte
+! suono passi_acqua
+Alle Zattere l'acqua è già sopra la fondamenta: cammini nell'acqua fino alle caviglie, tra le passerelle di legno che i netturbini hanno messo di notte. La nebbia è così fitta che le luci dei lampeggianti diventano macchie azzurre, sospese nel niente.
+Legata a una bricola c'è una gondola nera. Dentro, distesa sui cuscini come una sposa, c'è una donna anziana con l'abito da suora. Ha la gola tagliata. E sul viso porta una maschera ovale di velluto nero, senza bocca: una moretta, quella che le dame veneziane tenevano stretta coi denti, e che le obbligava a stare zitte.
+Il commissario Ferraresi ti guarda arrivare con le mani in tasca.
+FERRARESI: Sartori. Si chiamava suor Benedetta Moro, ottantun anni. Una vita a fare del bene, e guardi come finisce. Si dia da fare.
+Accanto alla gondola ci sono il dottor Pavan, il medico legale, e un gondoliere anziano avvolto in una cerata.
+-> Continua => zattere_hub
+
+== zattere_hub
+! ambiente laguna_notte
+La sirena ha smesso. Ora si sente solo l'acqua che sciaborda contro le pietre, e da lontano il motore di un motoscafo della polizia.
+-> Parli con il dottor Pavan => pavan [se non segnato visto_pavan]
+-> Parli con il gondoliere => gondoliere [se non segnato visto_gondoliere]
+-> Esamini la gondola da vicino => gondola [se non segnato vista_gondola]
+-> Torni in questura con Ferraresi => questura [se visite >= 2]
+
+== pavan
+! segna visto_pavan
+! visite +1
+Il dottor Pavan si sfila i guanti di lattice con uno schiocco. È un uomo magro, con gli occhiali spessi e un umorismo che i cadaveri non apprezzano.
+PAVAN: Un taglio solo, netto, profondo. Lama corta e affilatissima, forse un trincetto da calzolaio. L'hanno colpita alle spalle, mentre camminava. Poi l'hanno sistemata qui come una bambola. Ci vuole sangue freddo. Molto.
+-> Gli chiedi da che parte va il taglio => pavan_taglio
+-> Ne hai sentito abbastanza => zattere_hub
+
+== pavan_taglio
+! suono pagina
+Pavan ti guarda da sopra gli occhiali, compiaciuto, come un professore davanti all'unica studentessa che ha fatto la domanda giusta.
+PAVAN: Da destra a sinistra, ispettrice. Chi l'ha colpita le stava dietro e teneva la lama con la mano sinistra. Una persona mancina. Ne trovi una, e forse ha trovato la sua assassina.
+Abbassi gli occhi sulla tua mano destra. Quella con cui scrivi, mangi, spari.
+! indizio mancina
+! specchio +1
+-> Torni dagli altri => zattere_hub
+
+== gondoliere
+! segna visto_gondoliere
+! visite +1
+Il gondoliere si chiama Bepi, ha la faccia scavata dal vento e una sigaretta spenta tra le labbra. È stato lui a trovare la gondola, all'alba, venendo a prendere la sua.
+GONDOLIERE: Verso le tre ho visto una donna andar via di qua, ispettrice. Camminava nell'acqua come se niente fosse. Cappotto rosso, lungo. Capelli scuri, come i suoi.
+Si interrompe. Ti guarda meglio. Poi guarda Ferraresi, che ha sentito tutto.
+GONDOLIERE: Con rispetto parlando, ispettrice. Pareva lei.
+-> Gli chiedi di descriverti il viso di quella donna, con calma => gondoliere_neo
+-> Cambi discorso in fretta: «Che ora era, esattamente?» => zattere_hub {sospetto +1}
+
+== gondoliere_neo
+Bepi chiude gli occhi per ricordare meglio.
+GONDOLIERE: Bella donna. Pallida. E aveva un neo qui, sotto l'occhio. Come lei.
+Si tocca la guancia. La destra.
+Il tuo neo è sotto l'occhio sinistro. Lo vedi ogni mattina nello specchio, e nello specchio sembra a destra. Forse Bepi si confonde. Forse era buio. Forse.
+! indizio neo
+! specchio +1
+-> Ringrazi Bepi => zattere_hub
+
+== gondola
+! segna vista_gondola
+! visite +1
+! suono legno
+Ti chini sulla gondola. Il velluto della moretta è cucito a mano, con un punto minuto e preciso, da sarta. Sotto il sedile di poppa, dove nessuno ha ancora guardato, qualcosa luccica: una chiavetta d'ottone a forma di farfalla. La chiave per caricare un carillon.
+Hai la strana sensazione di averla già vista. Da bambina, forse. Ma tu da bambina non avevi un carillon.
+-> Infili la chiavetta in tasca senza dire niente a nessuno => zattere_hub {sospetto +1; prendi chiavetta}
+-> La consegni a Pavan, come prova => zattere_hub {fiducia +1; segna chiavetta_consegnata}
+
+== questura
+! ambiente questura
+! suono macchina_scrivere
+La Questura di Santa Chiara alle sette del mattino puzza di caffè della macchinetta e di cappotti bagnati. Sul tavolo di Ferraresi c'è già il Gazzettino. Il titolo dice: «LA MORETTA COLPISCE ALLE ZATTERE». I giornalisti hanno già trovato un nome per l'assassina.
+Ferraresi chiude la porta.
+FERRARESI: Lo chiedo a tutti, Sartori, non se la prenda. Lei stanotte dov'era?
+Marco, seduto in un angolo con il blocco degli appunti, alza la testa.
+-> Dici la verità: «Non me lo ricordo.» => questura_verita {sospetto +1; fiducia +1}
+-> Menti: «A casa, a dormire.» => questura_bugia {ombra +1}
+
+== questura_verita
+Ferraresi ti fissa per un lungo momento, la penna sospesa a mezz'aria. Poi la posa.
+FERRARESI: Non se lo ricorda. Benissimo. Lo scriverò così: non se lo ricorda.
+Quando esci dall'ufficio, Marco ti segue nel corridoio.
+MARCO: Ehi. Hai fatto bene a dirlo. Sei l'unica persona onesta in questo palazzo.
+! segna detto_verita
+-> Continua => marco_caffe
+
+== questura_bugia
+FERRARESI: A casa a dormire. Bene.
+Lo scrive. Ma il gondoliere ha parlato di un cappotto rosso, e in questura tutti sanno che tu porti un cappotto rosso. Ferraresi lo sa. E sa che tu sai che lo sa.
+! segna bugia_ferraresi
+-> Continua => marco_caffe
+
+== marco_caffe
+! ambiente questura
+! suono tazzina
+Marco ti porta un caffè della macchinetta, quello che sa di plastica bruciata. Marco Dal Ben è entrato in polizia insieme a te, dieci anni fa. È l'unico che ti chiama Giulia invece di Sartori.
+MARCO: Sei pallida come la suora. Dormi poco, eh? Ancora le gocce di Bernardi?
+Si siede sul bordo della scrivania. Aspetta. Marco sa aspettare.
+-> Gli racconti dei vuoti di memoria, delle scarpe bagnate, di tutto => marco_confidenza {fiducia +2}
+-> Sorridi e lo rassicuri: va tutto bene => bernardi {ombra +1}
+
+== marco_confidenza
+Lo racconti tutto d'un fiato, a voce bassa, mentre fuori piove. Il buco nero di stanotte. Le scarpe. Le gocce che sanno di amaro.
+Marco ascolta senza interromperti. Quando finisci ti mette una mano sulla spalla.
+MARCO: Ascoltami bene. Martedì eravamo insieme al corso di Padova, dalle otto di mattina alle otto di sera. Giovedì eravamo insieme qui, a interrogare quel ricettatore di Castello, fino alle nove. Qualunque cosa ti stia succedendo, io so dove eri. Ricordatelo.
+Lo guardi. Non sai perché, ma ti viene da piangere.
+! segna marco_sa
+-> Continua => bernardi
+
+== bernardi
+! ambiente studio
+! suono pioggia_vetri
+La sera vai dal dottor Bernardi, nel suo studio in Campo Santa Margherita. Da sei mesi, da quando è morto tuo padre, non dormi più. Bernardi ti ha dato le gocce, e un'ora alla settimana su questa poltrona di pelle verde.
+Stasera però Bernardi è strano. Non ti guarda negli occhi.
+BERNARDI: Giulia, devo dirle una cosa. Una settimana fa lei mi ha telefonato alle due di notte. Parlava con una voce diversa, più bassa, più lenta. Ha detto: «Lei non sa niente. Lei ha avuto tutto.» Poi ha riattaccato. Giovedì è venuta qui senza appuntamento, e si è comportata come un'altra persona. Ho registrato la seduta.
+Tu non hai mai telefonato a Bernardi di notte. Tu giovedì non sei venuta qui.
+BERNARDI: Vorrei provare con l'ipnosi. Per parlare con... chiunque sia.
+! indizio telefonata
+-> Accetti l'ipnosi => ipnosi {ombra +1}
+-> Rifiuti: vuoi sentire la registrazione, non essere ipnotizzata => nastro_bernardi
+
+== ipnosi
+! ambiente studio
+! suono orologio
+La voce di Bernardi è calda e monotona. Conta all'indietro da dieci. Al tre la stanza si allontana, al due diventa liquida, all'uno sparisce.
+Quando riapri gli occhi l'orologio dice che è passata un'ora. Bernardi è in piedi alla finestra, pallido.
+BERNARDI: Non è venuto fuori niente, Giulia. Ha dormito e basta, come un sasso. Ma prenda questa. È la seduta di giovedì. La ascolti a casa, da sola. Poi mi dica se riconosce la sua voce.
+Ti mette in mano un'audiocassetta.
+! prendi nastro
+-> Torni a casa => nastro
+
+== nastro_bernardi
+! ambiente studio
+Bernardi sospira, apre un cassetto e ti porge un'audiocassetta con un'etichetta scritta a mano.
+BERNARDI: È la seduta di giovedì. La ascolti a casa, da sola. Poi mi dica se riconosce la sua voce. E Giulia... se dovesse sentirsi strana, mi chiami. A qualunque ora.
+! prendi nastro
+-> Torni a casa => nastro
+
+== nastro
+! ambiente appartamento_notte
+! suono nastro_play
+A casa infili la cassetta nel vecchio registratore di tuo padre e premi PLAY. Fruscio. Il tossicchiare di Bernardi. Poi una voce di donna. È la tua voce. Ma più bassa, più lenta, come impastata di sonno.
+VOCE: Lei non sa niente. Lei ha avuto tutto. La casa, la mamma, il nome. A me hanno lasciato la stanza delle culle.
+Poi la voce comincia a canticchiare. Una ninna nanna che non hai mai sentito, su un'acqua che sale e una culla vuota.
+VOCE: Dormi, piccina, che l'acqua è salita. Una culla è vuota, una culla è fiorita.
+Il nastro finisce con un clic.
+! segna sentito_ninna
+-> Riavvolgi e riascolti tutto con attenzione, controllando anche l'etichetta => nastro_data
+-> Spegni. Non vuoi sentire altro => notte2 {ombra +1}
+-> Parli alla voce del nastro, come se potesse sentirti => nastro_parla {ombra +2}
+
+== nastro_data
+! suono nastro_play
+Riascolti tre volte. Il timbro è il tuo, è inutile negarlo. Ma c'è qualcosa che non torna: la voce ha una piccola esse sibilante che tu non hai.
+Poi guardi l'etichetta. «G. S., seduta, giovedì 7/11, ore 18.» Giovedì alle sei di sera eri in questura con Marco, a interrogare un ricettatore di Castello. C'è il verbale. Lo hai firmato tu, con la tua mano destra.
+Non puoi essere stata in due posti contemporaneamente.
+! indizio nastro_data
+! specchio +1
+-> Spegni la luce e cerchi di dormire => notte2
+
+== nastro_parla
+! ambiente appartamento_notte
+GIULIA: Chi sei? Che cosa vuoi da me?
+Il registratore gira a vuoto, fruscia. Ti senti ridicola. Poi, dalla cucina, arriva un rumore. Un cassetto che si chiude. Piano.
+Corri in cucina con il cuore in gola. Non c'è nessuno. Ma sul tavolo c'è un biglietto che prima non c'era. Le lettere sono rovesciate, scritte a specchio. Lo avvicini allo specchio dell'ingresso e leggi: «SMETTI DI CERCARMI. IO SONO QUELLA VERA.»
+! indizio specchiata
+-> Torni a letto, tremando => notte2
+
+== notte2
+! ambiente appartamento_notte
+! suono orologio
+È mezzanotte passata. Sei stanca da morire, ma hai paura di chiudere gli occhi. Il flacone delle gocce è sul comodino.
+-> Prendi le gocce. Hai bisogno di dormire => risveglio_calle
+-> Non prendi niente e resti sveglia, al buio, con la pistola sul comodino => veglia
+
+== veglia
+! ambiente appartamento_notte
+! suono serratura
+Le ore passano lentissime. L'una. Le due. Alle tre meno un quarto senti dei passi sul pianerottolo. Si fermano davanti alla tua porta.
+Poi un rumore che ti gela il sangue: una chiave che entra nella serratura. Gira mezzo giro. Si ferma. Come se qualcuno, dall'altra parte, avesse sentito il tuo respiro.
+Ti alzi con la pistola in pugno e spalanchi la porta. Il pianerottolo è vuoto. Sulle scale scendono impronte bagnate, di scarpe da donna. La tua misura.
+Qualcuno ha le chiavi di casa tua.
+! indizio chiavi_porta
+! specchio +1
+! segna sveglia_notte2
+-> Resti sveglia fino all'alba => zanon_giorno
+
+== risveglio_calle
+! ambiente calle_notte
+! suono sirena
+Ti svegli in piedi. Nell'acqua fino alle ginocchia, al buio, in una calle che non riconosci. Fa freddo, un freddo che morde le ossa. Hai addosso il cappotto rosso.
+La sirena dell'acqua alta urla sopra i tetti. Ti guardi le mani: la manica destra del cappotto è scura, appiccicosa. Sangue. Non tuo.
+Una targa sul muro: Fondamenta della Sensa, Cannaregio. Davanti a te una porta è socchiusa. Dall'interno arriva una musica sottile, metallica. Un carillon.
+! indizio sangue
+! ombra +1
+-> Entri nella casa => zanon_casa
+-> Scappi a casa e lavi il cappotto prima che qualcuno ti veda => zanon_giorno {sospetto +2; ombra +1; segna lavato}
+-> Corri alla cabina telefonica in fondo alla fondamenta e chiami Marco => marco_notte {fiducia +1; sospetto +1}
+
+== zanon_casa
+! ambiente casa_buia
+! suono carillon
+Dentro c'è buio. L'acqua è entrata anche qui, copre il pavimento dell'ingresso e riflette la luce della strada. Il carillon suona da una stanza in fondo. La stessa ninna nanna del nastro.
+Nello studio, seduto alla scrivania, c'è un vecchio con la testa reclinata all'indietro e una moretta di velluto nero sul viso. Sotto la scrivania, l'acqua è rossa.
+Sulla parete di fronte c'è un grande specchio. Ti ci vedi dentro: il cappotto rosso, i capelli bagnati, la faccia bianca. Alzi una mano verso la bocca.
+E ti accorgi che il tuo riflesso l'ha alzata mezzo secondo prima di te.
+Poi il riflesso si volta e se ne va. Esce dalla cornice. Senti una porta sbattere sul retro.
+! indizio riflesso
+! specchio +1
+-> Insegui la figura nella nebbia => inseguimento
+-> Resti con il morto e chiami aiuto => marco_notte {fiducia +1}
+
+== inseguimento
+! ambiente calle_notte
+! suono passi_acqua
+Corri nell'acqua, sbattendo contro i muri. Davanti a te, a una ventina di metri, un'ombra in cappotto rosso si muove veloce, sicura, come chi conosce ogni pietra. Attraversa un ponte, svolta a sinistra, sparisce sotto un sottoportego buio come una bocca.
+Sui gradini viscidi del ponte scivoli e batti il ginocchio sulla pietra, così forte che vedi bianco. Ti rialzi, con il fiato corto. Il sottoportego è nero. Non si vede l'uscita dall'altra parte.
+! salute -1
+-> Entri nel sottoportego, con la pistola in pugno => morte_calle
+-> Resti sul ponte e chiami rinforzi dalla cabina più vicina => marco_notte {fiducia +1}
+
+== morte_calle
+! ambiente calle_notte
+! suono passi_acqua
+Entri nel buio. Tre passi, quattro. L'acqua ti arriva alle cosce. Non si vede niente, nemmeno la tua mano davanti al viso.
+Poi senti un respiro. Accanto al tuo orecchio. Caldo.
+VOCE: Dormi, piccina.
+Il dolore arriva dopo, quando sei già in ginocchio nell'acqua. Ti trovano all'alba, i netturbini. Hai una moretta sul viso, e le mani incrociate sul petto come una sposa.
+! fine morte_calle
+
+== marco_notte
+! ambiente calle_notte
+! suono motoscafo
+Marco arriva in un quarto d'ora con il motoscafo della squadra mobile, i capelli spettinati e il maglione al rovescio. Ti trova seduta sui gradini di un ponte, nell'acqua, con il cappotto insanguinato. Ti guarda. Guarda la manica. Non dice niente per un lungo momento.
+MARCO: Giulia. Cosa è successo?
+GIULIA: Non lo so. Giuro che non lo so.
+Dentro la casa trovano il dottor Zanon, pediatra in pensione, ottantaquattro anni. Morto come la suora.
+-> Gli chiedi di non dire a nessuno che eri qui => zanon_giorno {sospetto +1; fiducia +1; segna marco_complice}
+-> Gli dici di fare rapporto: non hai niente da nascondere => zanon_giorno {fiducia +2}
+
+== zanon_giorno
+! ambiente questura
+! suono telefono_ufficio
+La mattina dopo la Questura è un manicomio. I giornalisti assediano l'ingresso, i telefoni squillano senza sosta. Il dottor Zanon, pediatra in pensione, ucciso nella sua casa di Cannaregio. Gola tagliata da destra a sinistra. Una moretta sul viso. Un carillon che suonava quando l'hanno trovato.
+Ferraresi appunta su una lavagna le due foto, quella della suora e quella del medico. Poi le collega con un pennarello rosso.
+FERRARESI: Suor Benedetta Moro. Dottor Guido Zanon. Negli anni Cinquanta lavoravano tutti e due nello stesso posto: il Pio Istituto delle Zitelle, alla Giudecca. Un orfanotrofio femminile.
+Ti si gela il sangue. Tu sei stata adottata alle Zitelle. Nel 1957, a pochi giorni di vita. Tua madre te lo ha detto quando avevi diciott'anni, e tu non hai mai voluto sapere altro.
+FERRARESI: Sartori? Si sente bene?
+-> Continua => giorno3_hub
+
+== giorno3_hub
+! ambiente citta_pioggia
+Esci dalla Questura sotto la pioggia. Il vaporetto per la Giudecca parte tra dieci minuti. Il treno per Mestre, dove vive tua madre, tra venti.
+-> Vai a Mestre, da tua madre => madre [se non segnato vista_madre]
+-> Prendi il vaporetto per la Giudecca, all'Istituto delle Zitelle => istituto [se non segnato visto_istituto]
+-> Passi dal negozio di Rialto dove hai comprato il cappotto rosso => negozio [se non segnato visto_negozio e segnato visto_gondoliere]
+-> Vai a parlare con l'avvocato Gritti, l'ultimo nome della lista => gritti [se segnato vista_madre e segnato visto_istituto]
+
+== negozio
+! ambiente negozio
+! suono campanello_porta
+! segna visto_negozio
+La commessa della boutique sotto i portici di Rialto si ricorda benissimo di te: un cappotto rosso così non lo vende tutti i giorni.
+COMMESSA: Ma certo, signora. È tornata a prenderne un altro identico, il giorno dopo. Stessa taglia, stesso colore. Ha pagato in contanti. Le ho detto: due cappotti uguali? E lei mi ha risposto che le piace avere un ricambio.
+Tu non sei mai tornata. Tu di cappotti rossi ne hai uno solo.
+COMMESSA: Si ricorda? Mi ha anche firmato la garanzia. Con la sinistra, ricordo, perché mi ha fatto ridere come teneva la penna.
+! indizio cappotto
+! specchio +1
+-> Ringrazi ed esci => giorno3_hub
+
+== madre
+! ambiente casa_madre
+! suono campanello
+! segna vista_madre
+Tua madre Rita vive da sola in un appartamento di via Piave, a Mestre, da quando papà è morto. La televisione è sempre accesa, a volume basso, per farle compagnia. Ti apre in vestaglia, e quando ti vede fa una faccia strana.
+RITA: Giulia! Ancora tu? Ma sei venuta martedì, tesoro. Con i capelli raccolti, che non ti stanno bene. Mi hai fatto tutte quelle domande sull'adozione, sulle Zitelle, se c'era una culla... e poi te ne sei andata senza neanche bere il caffè.
+Martedì. Martedì eri a Padova, a quel corso di aggiornamento. Tutto il giorno. Marco era seduto accanto a te.
+-> «Mamma, martedì io ero a Padova. Non ero qui.» => madre_martedi
+-> Le dici che non ricordi, che sei stanca, che ultimamente dimentichi le cose => madre_foto {ombra +1}
+
+== madre_martedi
+Tua madre ti guarda come si guarda una bambina che dice bugie.
+RITA: Giulia, ti ho vista con questi occhi. Eri qui, su quella sedia. Avevi anche il cappotto rosso. Ti sei seduta e hai preso la tazzina... con la sinistra, adesso che ci penso. Ho pensato: guarda che strana, oggi.
+Se Marco dice il vero, e tu sai che lo dice, martedì in questa cucina c'era un'altra persona. Con la tua faccia.
+! indizio visita
+! specchio +1
+! segna clue_visita
+-> Continua => madre_foto
+
+== madre_foto
+! suono pagina
+Prima che tu vada via, tua madre apre un cassetto e tira fuori una fotografia in bianco e nero, con i bordi dentellati.
+RITA: Tienila tu. È il giorno che ti abbiamo presa. Guarda com'ero giovane. Te l'avevo nascosta perché non volevi saperne niente, ma forse adesso è il momento.
+Nella foto lei sorride, con una neonata in braccio, davanti a un portone. Dietro di lei c'è una suora alta e magra. Suor Benedetta, giovane. E dietro la suora, nell'ombra di un corridoio, si intravede qualcosa.
+! prendi foto
+-> Guardi meglio la foto, sotto la lampada => madre_culle
+-> La metti in borsa e torni in città => giorno3_hub
+
+== madre_culle
+Avvicini la foto alla lampada della cucina. Nel corridoio dietro la suora, sfocate, ci sono due culle di ferro, una accanto all'altra. In una si vede un fagottino bianco.
+Due culle. Il giorno della tua adozione.
+RITA: Cosa guardi così, tesoro?
+Non le rispondi. Non sapresti cosa dirle.
+! indizio culle
+! specchio +1
+-> Torni in città => giorno3_hub
+
+== istituto
+! ambiente istituto
+! suono vaporetto
+! segna visto_istituto
+L'Istituto delle Zitelle è un grande edificio bianco sulla Giudecca, con una chiesa in mezzo e due ali di finestre chiuse. L'orfanotrofio non esiste più dal 1978. Ci vivono solo tre suore anziane, che affittano qualche stanza ai turisti.
+Ti accoglie suor Agnese. È quasi cieca, con gli occhi velati di bianco, e cammina appoggiandosi al muro. Quando le dici il tuo nome, si ferma. Allunga una mano e ti tocca il viso, lentamente, come se lo leggesse.
+AGNESE: Sei tornata. Ti avevo detto di non tornare più, bambina. Di lasciare in pace i morti.
+GIULIA: Io non sono mai stata qui, suor Agnese. Non da quando avevo pochi giorni.
+AGNESE: Allora sono proprio vecchia, e la memoria mi fa scherzi. Ma la voce è la stessa. La stessa.
+Comincia a canticchiare sottovoce, per sé.
+-> Continua => istituto_agnese
+
+== istituto_agnese
+=>! istituto_ninna [se segnato sentito_ninna]
+Suor Agnese canticchia una nenia lenta, con le parole mangiate dagli anni. Poi si interrompe e ti stringe il polso con una forza sorprendente.
+AGNESE: Le carte del '57 le teneva suor Benedetta. Nell'archivio, giù, dove nessuno va più. Ma non andarci. Non c'è niente di buono, nelle carte.
+-> Le chiedi di farti vedere l'archivio => istituto_rifiuto
+-> Mentre ti parla, le sfili il mazzo di chiavi dalla cintura => archivio {sospetto +1; prendi chiavi_agnese}
+-> Telefoni a Marco perché venga con un mandato => istituto_marco [se fiducia >= 2]
+
+== istituto_ninna
+Riconosci la melodia. Ti si drizzano i peli sulle braccia.
+AGNESE: Dormi, piccina, che l'acqua è salita...
+È la ninna nanna del nastro. La stessa, parola per parola.
+GIULIA: Questa canzone... dove l'ha imparata?
+AGNESE: Qui, bambina. La cantavamo alle piccole, la sera, quando l'acqua alta entrava nei corridoi e loro avevano paura. L'aveva scritta suor Benedetta. Non la conosce nessuno fuori di qui.
+Tu non l'avevi mai sentita prima di ieri sera. E la voce del nastro la sapeva a memoria.
+! indizio ninnananna
+! specchio +1
+-> Le chiedi delle carte dell'adozione => istituto_agnese2
+
+== istituto_agnese2
+AGNESE: Le carte del '57 le teneva suor Benedetta. Nell'archivio, giù, dove nessuno va più. Ma non andarci. Non c'è niente di buono, nelle carte.
+-> Le chiedi di farti vedere l'archivio => istituto_rifiuto
+-> Mentre ti parla, le sfili il mazzo di chiavi dalla cintura => archivio {sospetto +1; prendi chiavi_agnese}
+-> Telefoni a Marco perché venga con un mandato => istituto_marco [se fiducia >= 2]
+
+== istituto_rifiuto
+Suor Agnese scuote la testa con forza.
+AGNESE: No. No, no. Ho promesso a suor Benedetta. Vada via, ispettrice. Vada via e non torni.
+Ti accompagna alla porta. Il portone si chiude alle tue spalle con un tonfo che rimbomba sulla laguna.
+-> Torni in città => giorno3_hub
+
+== istituto_marco
+! suono motoscafo
+Marco arriva un'ora dopo con un foglio timbrato e il suo sorriso migliore. Con suor Agnese ci sa fare: le parla del tempo, dei santi, di sua nonna di Chioggia. Dieci minuti dopo la vecchia suora gli consegna le chiavi dell'archivio come se fossero un regalo.
+MARCO: Visto? Le suore mi adorano. È il mio fascino da chierichetto.
+! fiducia +1
+-> Scendete insieme nell'archivio => archivio
+
+== archivio
+! ambiente archivio_umido
+! suono porta_ferro
+L'archivio è una cantina con il soffitto a volta, mezza allagata. Scaffali di legno marcio, faldoni gonfi d'acqua, un odore di muffa e di sale che ti prende alla gola. La torcia illumina date sui dorsi: 1949, 1953, 1957.
+Il registro del 1957 è aperto su un leggio, come se qualcuno lo avesse consultato da poco. Una pagina è stata strappata. Ma non tutta: è rimasta la metà superiore, appesa alla rilegatura. La stacchi con cautela.
+«3 marzo 1957. Neonata n. 41, femmina, sana. Affidata ai coniugi Sartori di Mestre.» Sotto: «Neonata n. 42, fem...» Poi lo strappo. Il resto è sparito.
+In fondo alla pagina, tre firme: Benedetta Moro. Guido Zanon. Avvocato Filippo Gritti.
+! prendi registro
+! segna letto_registro
+-> Torni in superficie => giorno3_hub
+
+== gritti
+! ambiente palazzo
+! suono campanello
+L'avvocato Filippo Gritti abita in un palazzo gotico sul Canal Grande, a San Polo, con la facciata che si sbriciola e i pali da ormeggio a strisce. È un vecchio elegante, con il panciotto e un bastone dal pomo d'argento. Quando ti vede sulla porta, il bastone gli cade di mano.
+GRITTI: Lei. Lei non dovrebbe... Come ha fatto a trovarmi?
+GIULIA: Sono l'ispettrice Sartori, avvocato. Polizia. Lei è in pericolo.
+Gritti ti fissa. Lentamente, il terrore sul suo viso diventa qualcos'altro. Confusione. Poi una specie di pietà.
+GRITTI: Sartori. Sì. Certo. Lei è quella... quella fortunata.
+-> Lo incalzi: «Fortunata in che senso? Cosa è successo alle Zitelle nel '57?» => gritti_incalza
+-> Gli offri la protezione della polizia per stanotte => gritti_protezione {fiducia +1}
+
+== gritti_incalza
+GRITTI: Abbiamo fatto la cosa giusta! La signora Sartori voleva una bambina. Una sola. Le culle erano due, e i posti erano uno. Benedetta disse che era meglio così, che l'altra era... era diversa, già allora. Non piangeva mai. Non piangeva mai, capisce?
+Poi si accorge di quello che ha detto. Si irrigidisce. Ti spinge fuori dalla porta con il bastone.
+GRITTI: Vada via. Non ho altro da dirle. Non voglio la polizia, non voglio nessuno. Vada via!
+La porta si chiude. Senti i chiavistelli che scorrono, uno, due, tre.
+! segna gritti_parla
+-> Continua => bivio
+
+== gritti_protezione
+GRITTI: Protezione? Dalla polizia? Mi faccia il piacere.
+Ride, una risata secca che finisce in un colpo di tosse. Poi ti guarda con quegli occhi acquosi, pieni di qualcosa che non capisci.
+GRITTI: Ho settantanove anni, ispettrice. Ho fatto cose di cui mi vergogno. Se deve venire, che venga. Ma non mandi i suoi agenti a sporcarmi i tappeti.
+Ti chiude la porta in faccia, gentilmente.
+-> Continua => bivio
+
+== bivio
+! ambiente bora_laguna
+! suono sirena
+Quella notte la sirena suona tre volte. Il Centro maree annuncia un'acqua alta eccezionale: un metro e quaranta. La città sta per finire sott'acqua, e da qualche parte, nella nebbia, la Moretta ha ancora un nome sulla sua lista.
+Torni a casa. Ti siedi al tavolo della cucina, con tutto quello che hai raccolto in questi giorni davanti agli occhi. E capisci che stanotte dovrai decidere a chi credere. A quello che vedi, o a quello che temi.
+=> s_inizio [se specchio >= 8 e ha registro]
+=> f_inizio [se ombra > sospetto]
+=> i_inizio
+# =====================================================================
+#  LINEA DELLA FOLLIA
+# =====================================================================
+
+== f_inizio
+! ambiente appartamento_notte
+! suono pioggia_vetri
+Stacchi il telefono dal muro. Chiudi le persiane. Se la Moretta sei tu, nessuno deve pagare per quello che fai al buio. Nemmeno Marco. Soprattutto Marco.
+Apri l'armadio per prendere una coperta. Sul ripiano più alto, dietro le scatole delle scarpe, c'è un fagotto di stoffa che non hai mai visto. Lo srotoli sul letto.
+Tre morette di velluto nero, cucite a mano. Un trincetto da calzolaio con la lama lucidata. Un rocchetto di filo nero e un ago, ancora infilato.
+VOCE: Ti piacciono? Le ho fatte per te. Cioè, per noi.
+La voce non viene dal registratore. Viene da dentro la tua testa. O da dietro di te.
+-> Butti tutto nella stufa e guardi bruciare il velluto => f_bruci
+-> Prendi in mano una moretta e la avvicini piano al viso => f_maschera_viso {ombra +2; prendi maschera}
+
+== f_bruci
+! suono fuoco
+Il velluto brucia male, con una fiamma azzurra e un odore dolciastro di capelli. Il trincetto lo butti nel canale dalla finestra del bagno. Ti senti meglio. Per dieci minuti.
+Poi, nel vetro della finestra, vedi il tuo riflesso. Sorride.
+Tu non stai sorridendo.
+! ombra +1
+-> Devi sapere cosa fai di notte. Devi vederlo con i tuoi occhi => f_telecamera
+
+== f_maschera_viso
+! suono stoffa
+Il velluto è morbido, freddo. C'è un piccolo bottone all'interno, all'altezza della bocca. Per tenere la moretta sul viso bisogna stringerlo tra i denti. E così non si può parlare.
+Lo stringi. Il mondo diventa silenzioso. Nello specchio dell'armadio c'è una donna senza bocca che ti guarda con i tuoi occhi.
+Ti senti calma. Per la prima volta da giorni, calma. È questo che ti spaventa di più.
+-> Togli la maschera, con le mani che tremano => f_telecamera
+
+== f_telecamera
+! ambiente appartamento_notte
+! suono interruttore
+Dal ripostiglio tiri fuori la videocamera di tuo padre, quella con cui filmava i compleanni. Una Sony grossa come un mattone. Ci infili una cassetta nuova e la metti sul comò, puntata sul letto.
+Prima di dormire ti leghi il polso destro alla spalliera del letto, con una sciarpa, con tre nodi stretti. Se ti alzi nel sonno, lo saprai.
+Premi REC. Il lucino rosso si accende. Prendi le gocce.
+Il buio arriva subito.
+-> Continua => f_mattino
+
+== f_mattino
+! ambiente appartamento_giorno
+! suono pioggia_vetri
+Ti svegli alle nove. La sciarpa non è più al tuo polso. È sulla sedia, piegata con cura in quattro.
+La videocamera è spenta.
+Con le mani che ti tremano tiri fuori la cassetta e la infili nel videoregistratore. Sullo schermo del televisore compari tu, nel letto, al buio, illuminata dal lampione della strada. Ti giri nel sonno. Il contatore scorre: 0.40, 1.15, 1.58. Alle 2.13 l'immagine sobbalza.
+Poi diventa nera.
+-> Riavvolgi e fermi l'immagine sul fotogramma delle 2.13 => f_mano
+-> Spegni il televisore. Non vuoi sapere => f_lettera {ombra +1}
+
+== f_mano
+! suono nastro_play
+Avanti un fotogramma alla volta. 2.12. 2.13. Nel fotogramma esatto in cui l'immagine sobbalza, dal bordo sinistro dello schermo entra una mano. Una mano di donna, in una manica rossa, che si allunga verso l'obiettivo.
+E nello stesso fotogramma, nel letto, ci sei tu. Addormentata. Con il polso destro legato alla spalliera, e il sinistro sotto il cuscino.
+Guardi lo schermo così a lungo che gli occhi ti bruciano.
+! indizio videocassetta
+! specchio +1
+-> Continua => f_lucidita
+
+== f_lucidita
+=>! s_lucida [se specchio >= 8 e ha registro]
+Forse è un difetto del nastro. Un fotogramma sporco, un'ombra. Forse la mano è la tua, e il corpo nel letto è un'immagine rimasta impressa. Bernardi te l'ha detto: la mente sa fare cose che non immagini.
+Ti manca qualcosa per capire. Un pezzo. Lo senti come si sente un dente che manca.
+-> Continua => f_lettera
+
+== f_lettera
+! ambiente appartamento_notte
+! suono pagina
+Se lei vive dentro di te, allora può leggere. Prendi un foglio e una penna, e le scrivi una lettera. La lasci sul tavolo della cucina, in bella vista.
+-> Le scrivi: «Chi sei? Che cosa vuoi?» => f_risposta
+-> Le scrivi: «Hai vinto tu. Prenditi quello che vuoi.» => f_risposta {ombra +2}
+
+== f_risposta
+! ambiente appartamento_giorno
+! suono pagina
+La mattina dopo, sotto la tua lettera, c'è la risposta. Scritta a specchio, con l'inchiostro rosso, in una calligrafia che è la tua girata al contrario.
+La leggi nello specchio dell'ingresso: «STANOTTE DA GRITTI. VIENI A VEDERE CHI SEI.»
+Qualcuno bussa alla porta. Tre colpi. Poi la voce di Marco.
+MARCO: Giulia! Giulia, apri, ti prego. Sono tre giorni che non rispondi al telefono.
+! indizio specchiata
+-> Apri a Marco => f_marco
+-> Resti immobile finché i suoi passi non se ne vanno => f_gritti_notte {ombra +1}
+
+== f_marco
+! ambiente appartamento_giorno
+! suono porta
+Marco entra e si blocca. Le persiane chiuse, i piatti sporchi, la videocamera sul comò, la cenere di velluto nella stufa. Ti guarda come si guarda una persona in un letto d'ospedale.
+MARCO: Dio, Giulia. Lasciati aiutare. Bernardi dice che c'è un posto, a San Clemente, dove possono curarti. Ti accompagno io.
+-> Lo lasci parlare, e lo ascolti davvero => f_marco_parla [se fiducia >= 3 e non segnato clue_visita]
+-> Vai con lui. Ti fai ricoverare => i_ricovero
+-> Lo spingi fuori e gli chiudi la porta in faccia => f_gritti_notte {fiducia -1}
+
+== f_marco_parla
+Marco si siede sul bordo del letto. Parla piano.
+MARCO: Ho fatto una cosa che non dovevo. Ho controllato i turni, le presenze, i registri. Tua madre giura che martedì eri a Mestre, da lei. Martedì eri con me a Padova, Giulia. Ti ho vista tutto il giorno. Non puoi essere stata in due posti. Nessuno può.
+Ti prende le mani. Le sue sono calde.
+! indizio visita
+! specchio +1
+! segna clue_visita
+-> Metti in fila tutto quello che sai, una cosa dopo l'altra => f_lucidita2
+
+== f_lucidita2
+=>! s_lucida [se specchio >= 8 e ha registro]
+Lo metti in fila. Ma c'è un vuoto in mezzo, un pezzo che non hai trovato, e senza quel pezzo tutto continua a puntare verso di te.
+MARCO: Vieni con me. Ti prego.
+-> Vai con lui. Ti fai ricoverare => i_ricovero
+-> Gli dici che devi andare da sola, stanotte, da Gritti => f_gritti_notte
+
+== f_gritti_notte
+! ambiente palazzo_allagato
+! suono sirena
+L'acqua alta eccezionale ha invaso la città. Arrivi al palazzo di Gritti con l'acqua alla vita, la pistola sopra la testa. Il portone è aperto.
+L'androne è un lago nero. Sull'acqua galleggiano decine di candele accese, appoggiate su tavolette di legno, che girano lente come in una processione. In fondo, sulla grande scala, c'è l'avvocato Gritti. Seduto su un gradino, la testa appoggiata alla balaustra. Una moretta sul viso.
+Sul pianerottolo c'è uno specchio antico, alto fino al soffitto. Ti ci vedi dentro, con le candele intorno. Il tuo riflesso sorride. Poi inclina la testa da una parte, piano.
+VOCE: Guarda bene. Siamo noi. Siamo sempre state noi.
+Dal fondo, dalla cantina, sale una ninna nanna.
+-> Rompi lo specchio con il calcio della pistola => f_specchio_fine
+-> Ti metti la moretta, e stringi il bottone tra i denti => f_maschera_fine [se ha maschera]
+-> Togli la moretta dal viso di Gritti e te la metti => f_maschera_fine [se non ha maschera]
+-> Scendi in cantina, verso la ninna nanna => morte_acqua
+
+== f_specchio_fine
+! suono vetro_rotto
+Il vetro esplode in mille pezzi. Cadono nell'acqua tintinnando, e in ognuno, alla luce delle candele, c'è un pezzo della tua faccia. Un occhio. Una bocca. Un neo. Ridono tutti insieme.
+Marco ti trova all'alba, seduta sui gradini accanto al morto, con l'acqua fino al petto. Tieni in mano un frammento di specchio e ci parli dentro, sottovoce, con due voci diverse. Una fa le domande. L'altra risponde.
+Non smetterai più. Nella clinica di Treviso dove ti portano, le infermiere imparano a coprire gli specchi quando entri nella stanza. Ma c'è sempre una finestra, un cucchiaio, una pozzanghera. E lei è sempre lì, dall'altra parte.
+A volte, quando nessuno guarda, nella pozzanghera sotto la tua finestra si specchia una donna in cappotto rosso, ferma sul marciapiede. Ha un neo sotto l'occhio destro. Ti saluta con la mano sinistra.
+! fine follia_specchio
+
+== f_maschera_fine
+! suono stoffa
+Il bottone ha il sapore del sale. Lo stringi tra i denti, e la voce nella tua testa finalmente tace. Non c'è più bisogno di parlare. Non c'è più bisogno di niente.
+Esci dal palazzo e cammini nella città allagata, con l'acqua alla vita, la moretta sul viso. Nessuno ti ferma. Nessuno ti guarda. A Venezia, d'inverno, una maschera non stupisce nessuno.
+I giornali parlano della Moretta per tutto l'inverno. La polizia cerca una donna con un cappotto rosso. L'ispettrice Giulia Sartori risulta scomparsa.
+Una notte di febbraio, sotto la nebbia, sul Ponte dei Pugni, due donne in cappotto rosso si incrociano. Tutte e due portano una moretta. Si fermano. Una delle due fa un piccolo inchino. L'altra lo ricambia, come in uno specchio.
+Poi la nebbia se le prende tutte e due.
+! fine follia_maschera
+
+== morte_acqua
+! ambiente cantina_allagata
+! suono porta_ferro
+La scala della cantina scende dritta nell'acqua nera. Scendi un gradino alla volta, seguendo la ninna nanna, finché l'acqua non ti arriva al petto. In fondo, su una mensola, c'è un carillon aperto. Una ballerina che gira.
+Dietro di te, in cima alla scala, la porta si chiude. Senti la chiave girare. Due mandate.
+La marea sale ancora. Lentamente, con pazienza, come sa salire solo a Venezia. Il carillon continua a suonare finché l'acqua non lo copre. Poi continua a suonare anche sott'acqua, per un po'. Lo senti attraverso l'acqua, nelle orecchie, fino alla fine.
+! fine morte_acqua
+# =====================================================================
+#  LINEA DEL MANICOMIO
+# =====================================================================
+
+== i_inizio
+! ambiente appartamento_giorno
+! suono bussare
+All'alba ti svegliano dei colpi alla porta, così forti che il quadro dell'ingresso cade per terra. Apri. Sul pianerottolo c'è il commissario Ferraresi con due agenti in divisa e un foglio in mano. Dietro di loro, sulle scale, c'è Marco. Non ti guarda.
+FERRARESI: Sartori. L'avvocato Gritti è morto stanotte. Alle undici e mezza dal tuo telefono è partita una chiamata. Al suo numero di casa. Durata: quattro minuti. Ho un mandato di perquisizione.
+Gli agenti entrano. Ci mettono meno di un minuto. Nella vasca da bagno trovano un cappotto rosso arrotolato, fradicio, sporco di sangue fino ai gomiti. E un trincetto da calzolaio.
+Il tuo cappotto rosso è appeso all'attaccapanni. Asciutto. Ma nessuno lo guarda.
+FERRARESI: Giulia Sartori, la dichiaro in arresto.
+! segna gritti_morto
+-> Ti lasci mettere le manette => i_interrogatorio
+
+== i_ricovero
+! ambiente laguna_giorno
+! suono motoscafo
+Marco ti accompagna in motoscafo fino all'isola di San Clemente. Il dottor Bernardi firma le carte del ricovero volontario sul molo, sotto la pioggia. Ti stringe la mano più a lungo del necessario.
+BERNARDI: Ha fatto la scelta giusta, Giulia. Qui sarà al sicuro. E gli altri saranno al sicuro da... da quello che non controlla.
+Quella stessa notte, mentre tu dormi in un letto di ferro a San Clemente, l'avvocato Gritti viene ucciso nel suo palazzo. Lo vieni a sapere due giorni dopo, da un giornale vecchio lasciato in sala mensa. Nessuno te l'ha detto. Nessuno pensa che sia importante.
+! segna volontaria
+! segna gritti_morto
+-> Continua => i_san_clemente
+
+== i_interrogatorio
+! ambiente questura_notte
+! suono nastro_play
+La stanza degli interrogatori è la stessa dove tante volte sei stata dall'altra parte del tavolo. Il registratore gira. Ferraresi fuma, cosa che in questura è vietata.
+FERRARESI: Sartori, la conosco da dieci anni. Non la credo un mostro. Credo che lei sia malata. Mi aiuti a capire. Mi dica cosa ricorda.
+-> «Forse sono stata io. Non lo so più. Scriva quello che vuole.» => i_confessione
+-> «Non sono stata io. Chieda a Marco dov'ero martedì e giovedì.» => i_marco_difende [se segnato marco_sa o fiducia >= 3]
+-> «Voglio un avvocato. Non dico altro.» => i_perizia
+
+== i_confessione
+! ambiente questura_notte
+! suono pagina
+Firmi il verbale con la mano destra, ferma, senza leggerlo. Ferraresi lo prende, lo guarda, scuote la testa. Sembra più triste di te.
+Al processo i periti dicono che sei incapace di intendere e di volere. Il giudice ti manda all'ospedale psichiatrico giudiziario di Castiglione delle Stiviere, in provincia di Mantova, lontano dall'acqua. Per un minimo di dieci anni.
+Dopo il tuo arresto la Moretta non uccide più. Tutti dicono che è la prova. Anche tu, dopo un po', cominci a crederci.
+Il primo Natale ricevi una cartolina. Una veduta del Canal Grande sotto la neve. Sul retro, una sola riga, con una calligrafia che conosci benissimo, perché è la tua: «Tua madre sta bene. Marco anche. Mi trovo benissimo nella tua vita. Grazie. Giulia.»
+La giri e la rigiri tra le mani tutta la notte. È scritta con l'inchiostro rosso.
+! fine manicomio_verbale
+
+== i_marco_difende
+! ambiente questura_notte
+! suono porta
+Ferraresi fa entrare Marco. Marco si siede, ti guarda per la prima volta da stamattina, e parla con voce ferma.
+MARCO: Martedì era con me a Padova. Giovedì alle sei era con me qui, c'è il verbale. Commissario, io non so cosa sta succedendo. Ma non so nemmeno se è stata lei.
+FERRARESI: E il cappotto nella vasca? La telefonata? Il gondoliere? Dal Ben, lei è innamorato. Si vede da Mestre.
+Marco arrossisce, ma non abbassa lo sguardo. Ferraresi sbuffa e chiude il fascicolo.
+FERRARESI: Decide il giudice. E prima del giudice, decidono i medici.
+! segna marco_crede
+-> Continua => i_perizia
+
+== i_perizia
+! ambiente studio
+! suono orologio
+La perizia psichiatrica dura tre giorni. Il perito è il dottor Bernardi, che ti conosce meglio di chiunque altro. Ti fa domande per ore, con la sua voce calma, prende appunti, ascolta di nuovo il nastro.
+Il terzo giorno ti legge le conclusioni. Disturbo dissociativo dell'identità. Una seconda personalità, ostile, che lui chiama «l'altra Giulia». Pericolosa per sé e per gli altri.
+BERNARDI: Mi dispiace, Giulia. Davvero. Il giudice ha disposto il ricovero a San Clemente, in attesa del processo. È un posto tranquillo. La aiuteranno.
+-> Continua => i_san_clemente
+
+== i_san_clemente
+! ambiente manicomio
+! suono motoscafo
+L'isola di San Clemente emerge dalla nebbia come una nave abbandonata: un vecchio convento, un campanile, lunghi padiglioni con le finestre a sbarre. Da più di cent'anni ci portano le donne che la città non vuole vedere.
+Ti accoglie l'infermiera Teresa, una donna grossa e gentile con le mani rosse. Ti dà una camicia da notte di flanella, un letto di ferro in una camerata con altre undici donne, un armadietto senza chiave.
+INFERMIERA: Qui non serve chiudere niente, cara. Tanto non c'è niente da rubare. E da qui non si scappa: intorno c'è la laguna.
+Nel letto accanto al tuo c'è una vecchia piccola, con i capelli bianchi intrecciati. Canticchia guardando il soffitto.
+-> Ti siedi accanto alla vecchia e ascolti cosa canta => i_ines
+-> Ti stendi sul letto, girata verso il muro => i_notte
+
+== i_ines
+! ambiente manicomio
+=>! i_ines_ninna [se segnato sentito_ninna]
+La vecchia si chiama Ines. Canta una nenia lenta, con le parole che non riesci ad afferrare. Quando si accorge di te, si ferma e ti guarda con gli occhi improvvisamente lucidi.
+INES: Io ti conosco. Anch'io ero delle Zitelle, sai? Ero grande, già, quando c'eravate voi. Facevo le pulizie. Vi cambiavo le fasce.
+GIULIA: Noi chi, Ines?
+INES: Voi due. Le piccine del '57. Una l'hanno presa i signori di Mestre. L'altra è rimasta. L'altra non piangeva mai.
+! indizio gemelle_ines
+! specchio +1
+-> Continua => i_notte
+
+== i_ines_ninna
+INES: Dormi, piccina, che l'acqua è salita...
+È la ninna nanna del nastro. Ti si gela il sangue. Ines si accorge di te, si ferma, e ti guarda con gli occhi improvvisamente lucidi.
+INES: Io ti conosco. Anch'io ero delle Zitelle, sai? Facevo le pulizie, vi cambiavo le fasce. Questa ve la cantavamo la sera, a voi due. Le piccine del '57. Una l'hanno presa i signori di Mestre. L'altra è rimasta. L'altra non piangeva mai.
+! indizio gemelle_ines
+! specchio +1
+-> Continua => i_notte
+
+== i_notte
+! ambiente manicomio_notte
+! suono passi_corridoio
+La notte a San Clemente non è mai silenziosa. Qualcuno piange, qualcuno parla da solo, qualcuno ride. I passi dell'infermiera di turno vanno e vengono nel corridoio, e la luce della sua torcia passa sotto la porta come un faro.
+Teresa ti porta un bicchierino di plastica con due pillole bianche.
+INFERMIERA: La terapia, cara. Ti aiuta a dormire senza sogni.
+-> Prendi le pillole => i_visita {ombra +1}
+-> Le tieni sotto la lingua e, quando Teresa esce, le sputi nel fazzoletto => i_visita {segna lucida_sc}
+
+== i_visita
+! ambiente parlatorio
+! suono porta
+Passa una settimana. Poi un giovedì Teresa viene a chiamarti.
+INFERMIERA: Visite, cara. C'è tua sorella.
+Tu non hai sorelle.
+Nel parlatorio, seduta a un tavolino di formica, c'è una donna. Ha il tuo cappotto rosso. I tuoi capelli, tagliati come li porti tu. La tua faccia, identica, come in uno specchio. Ha un neo sotto l'occhio destro. Tiene la tazzina del caffè con la mano sinistra.
+LIVIA: Ciao, Giulia. Siediti. Ti ho portato le arance.
+La sua voce è la tua voce, ma più bassa, più lenta. La voce del nastro.
+LIVIA: Sto tenendo in ordine la tua casa. Ho cambiato le tende, quelle vecchie erano tristi. La mamma dice che sei diventata più dolce, ultimamente. E Marco... Marco domenica mi porta al cinema.
+Sorride. È il tuo sorriso.
+! segna vista_livia
+-> Ti alzi e urli agli infermieri che è lei l'assassina => i_urlo
+-> Resti seduta. Calma. Guardi tutto, ricordi tutto => i_piano [se segnato lucida_sc o specchio >= 3]
+-> Le chiedi soltanto: «Perché?» => i_perche
+
+== i_perche
+! ambiente parlatorio
+Livia beve un sorso di caffè. Lo posa. Si guarda le mani.
+LIVIA: Perché c'erano due culle, e una sola famiglia. Hanno deciso loro: la suora, il dottore, l'avvocato. Hanno guardato due bambine uguali e hanno scelto quella che piangeva. A me hanno lasciato la stanza delle culle. Per diciotto anni. Poi gli istituti, i dottori, le pillole. Ho cucito maschere per vent'anni, in una bottega di Castello, guardando la tua vita dalla finestra.
+Si alza. Si infila i guanti.
+LIVIA: Adesso tocca a te, la stanza. Non è così brutta, vedrai. Ci si abitua.
+-> Le salti addosso, urlando aiuto => i_urlo
+-> La lasci andare, e intanto cominci a pensare a come uscire da qui => i_piano [se segnato lucida_sc o specchio >= 3]
+-> Resti seduta, svuotata, a guardare le arance => i_urlo
+
+== i_urlo
+! ambiente manicomio_notte
+! suono colluttazione
+Urli. Le punti il dito contro, urli che è lei, che è lei la Moretta, che guardate il neo, guardate la mano. Due infermieri ti afferrano per le braccia. Livia ti guarda con gli occhi pieni di lacrime finte e dice a Teresa che le dispiace tanto, che è colpa sua, che non doveva venire.
+L'ago entra nel braccio. Il mondo diventa morbido.
+Ti svegli due giorni dopo, legata al letto. Da allora le visite di tua sorella sono sospese, per il tuo bene. Livia continua a mandare arance ogni giovedì.
+Passano gli anni. San Clemente chiude nel 1992, e ti trasferiscono in una struttura in terraferma, con un giardino e un cancello. Ogni Natale arriva una cartolina con il Canal Grande. È firmata Giulia.
+Di notte, a volte, senti ancora la ninna nanna. Non sai più se viene dalla laguna o da dentro di te.
+! fine manicomio_sc
+
+== i_piano
+! ambiente manicomio
+! suono orologio
+Non dici niente. Non urli. Guardi Livia uscire dal parlatorio, ondeggiando nel tuo cappotto, e memorizzi tutto. Il modo in cui tiene la borsa. L'orario. La barca su cui sale.
+Da quella sera, ogni notte, sputi le pillole. Osservi. Impari i turni delle infermiere, i rumori delle porte, gli orari delle barche.
+Il giovedì all'alba, dal molo dietro la lavanderia, parte una vecchia barca a motore carica di lenzuola sporche, diretta a una lavanderia di San Basilio. Il barcaiolo è sordo da un orecchio e fuma sempre a prua.
+L'altra possibilità è la laguna. Tre chilometri di acqua nera e nebbia fino alle Zattere.
+-> Ti nascondi tra le lenzuola della barca della lavanderia => i_barca
+-> Una notte senza luna, ti butti in acqua e nuoti verso Venezia => morte_laguna
+
+== i_barca
+! ambiente laguna_giorno
+! suono motore_barca
+Ti infili tra i sacchi di lenzuola, che puzzano di candeggina e di cose peggiori. La barca parte con un borbottio, scivola nella nebbia per mezz'ora che sembra un giorno intero. Quando senti il motore rallentare, sbuchi fuori, salti sul pontile di San Basilio e corri via scalza, in camicia da notte, sotto gli occhi esterrefatti di un vecchio che pesca.
+Sei a Venezia. Sei libera. Per ora.
+=> s_fuga [se specchio >= 7 e ha registro]
+=> i_ripresa
+
+== i_ripresa
+! ambiente citta_pioggia
+! suono passi_acqua
+Corri, ma non sai dove andare. Non sai dove abita Livia, non sai dove colpirà. Bussi a casa tua: ti apre una vicina, ti guarda, chiude la porta e chiama la polizia. Provi a telefonare a Marco da un bar: il barista ti guarda la camicia da notte e i piedi nudi e ti chiede gentilmente di uscire.
+Ti prendono due ore dopo a Piazzale Roma, seduta su una panchina, mentre tremi di freddo. Gli agenti sono gentili. Uno di loro ti mette addosso la sua giacca.
+A San Clemente ti chiudono in una stanza da sola, con le sbarre più strette. Teresa scuote la testa, delusa. Livia, per un po', non viene più a trovarti.
+Poi, una domenica, la vedi dalla finestra. È sul molo, insieme a Marco. Gli tiene il braccio. Alza gli occhi verso la tua finestra, e ti saluta con la mano sinistra.
+! fine manicomio_ripresa
+
+== morte_laguna
+! ambiente laguna_notte
+! suono tuffo
+L'acqua di novembre ti toglie il respiro come un pugno. Nuoti a bracciate disordinate verso le luci di Venezia, che nella nebbia sembrano vicine e poi lontane, e poi spariscono del tutto.
+Dopo un po' non sai più da che parte sei venuta. Il freddo ti entra nelle braccia, nelle gambe, nei pensieri. Nuoti in tondo. Poi smetti di nuotare.
+L'ultima cosa che senti, da molto lontano, è una barca che passa nella nebbia. Qualcuno, a bordo, canticchia una ninna nanna.
+! fine morte_laguna
+# =====================================================================
+#  LINEA SEGRETA
+# =====================================================================
+
+== s_inizio
+! ambiente appartamento_notte
+! suono pagina
+Sul tavolo della cucina metti tutto in fila, come in una lavagna di questura. Il taglio da destra a sinistra. Il neo sotto l'occhio sbagliato. La seduta registrata mentre eri con Marco. E tutte le altre cose che non tornano, una dopo l'altra, annotate nel taccuino con la tua calligrafia diritta.
+E la pagina strappata del registro: «Neonata n. 41, femmina. Affidata ai coniugi Sartori.» E sotto: «Neonata n. 42, fem...»
+Lo stesso giorno. Due culle. Una sola famiglia.
+Ti alzi. Vai allo specchio dell'ingresso. Ti guardi a lungo, il neo sotto l'occhio sinistro, la mano destra appoggiata al vetro.
+GIULIA: Non sono pazza. Non sono io. Sei tu. Sei sempre stata là fuori.
+Hai una sorella. Una gemella. Ha la tua faccia rovesciata come in uno specchio, scrive con la sinistra, ti ha rubato il sonno, le chiavi, la voce. E stanotte, con l'acqua alta, finirà quello che ha cominciato.
+-> Continua => s_scelta
+
+== s_lucida
+! ambiente appartamento_notte
+! suono nastro_stop
+Il fotogramma resta fermo sullo schermo, tremolante. La mano nella manica rossa. E tu, nel letto, con il polso legato.
+Due donne nella stessa stanza. Alle 2.13 di notte.
+Prendi la pagina strappata del registro, la foto, gli appunti. Li metti in fila sul tavolo. Il taglio mancino. Il neo dalla parte sbagliata. La seduta di giovedì. Tutto quello che non torna. E la riga del registro: «Neonata n. 42, fem...»
+È come se qualcuno avesse acceso la luce in una stanza in cui vivevi al buio da settimane.
+GIULIA: Non sono pazza. Non sei dentro di me. Sei là fuori.
+Hai una gemella. E stanotte, con l'acqua alta, finirà quello che ha cominciato.
+-> Continua => s_scelta
+
+== s_fuga
+! ambiente citta_pioggia
+! suono passi_acqua
+Corri scalza lungo le Zattere, in camicia da notte, con il cuore che ti batte nelle tempie. La donna del parlatorio ha la tua faccia, e c'è un solo posto al mondo da cui può essere venuta: l'Istituto delle Zitelle, dove tutto è cominciato.
+In un bar che apre all'alba un barista ti guarda come si guarda un fantasma, ma ti lascia usare il telefono a gettoni e ti presta una giacca da lavoro.
+-> Continua => s_scelta
+
+== s_scelta
+! ambiente bora_laguna
+! suono sirena
+La sirena dell'acqua alta urla sulla città. Hai poco tempo.
+-> Telefoni a Marco => s_marco [se fiducia >= 2]
+-> Telefoni a Marco => s_marco_no [se fiducia < 2]
+-> Non chiami nessuno. Questa storia è tua, e la chiudi da sola => s_dove
+
+== s_marco
+! suono telefono
+Marco risponde al primo squillo, come se dormisse con il telefono sul cuscino.
+GIULIA: Marco. Non sono io. Ho una gemella. Si chiama... non lo so come si chiama. Ma esiste, e stanotte uccide ancora.
+Silenzio. Poi senti il fruscio di un giubbotto infilato in fretta.
+MARCO: Dimmi dove. Arrivo.
+! segna marco_con_te
+-> Continua => s_dove
+
+== s_marco_no
+! suono telefono
+Marco risponde dopo molti squilli, con la voce impastata di sonno.
+GIULIA: Marco, ascoltami. Non sono io. Ho una gemella. Stanotte uccide ancora.
+MARCO: Giulia... è tardi. Sei sicura di stare bene? Dove sei? Aspettami lì, chiamo Bernardi e...
+Riattacchi. Non ti crede. Non ancora.
+-> Continua => s_dove
+
+== s_dove
+! ambiente calle_notte
+! suono passi_acqua
+Dove sarà adesso, la tua gemella? Ha ucciso la suora che vi ha divise, il dottore che ha firmato. Restano l'avvocato. E la donna che ha scelto. Tua madre.
+-> Corri al palazzo dell'avvocato Gritti, sul Canal Grande => s_gritti [se non segnato gritti_morto]
+-> Telefoni a tua madre, a Mestre => s_madre
+-> Vai dritta alle Zitelle, nella stanza delle culle => s_zitelle [se segnato sentito_ninna o segnato letto_registro o segnato vista_livia]
+
+== s_gritti
+! ambiente palazzo_allagato
+! suono acqua_gocce
+Il portone del palazzo di Gritti è spalancato. Nell'androne allagato galleggiano candele accese. L'avvocato è sulla scala, con la schiena contro la balaustra e le mani premute sul ventre. È ancora vivo. Respira a fatica.
+GRITTI: È lei... ma non è lei. Ha la tua faccia... dall'altra parte.
+Ti inginocchi accanto a lui, nell'acqua.
+GRITTI: Livia. Si chiama Livia. Benedetta le aveva dato quel nome perché era livida, quando è nata, e non piangeva. Vuole la madre. Ha detto che si prende la madre, e poi si prende te.
+Chiude gli occhi. Le sue dita lasciano cadere una moretta nell'acqua, che galleggia accanto alle candele.
+! segna sa_nome
+-> Telefoni subito a tua madre => s_madre
+-> Corri alle Zitelle => s_zitelle
+
+== s_madre
+! suono telefono
+Componi il numero di casa di tua madre con le dita che tremano. Uno squillo. Due. Tre. Poi qualcuno risponde.
+LIVIA: Pronto? Casa Sartori.
+È la tua voce. Più bassa. Più lenta.
+LIVIA: Ciao, Giulia. La mamma non può venire al telefono, adesso. Siamo a casa. Cioè, a casa mia. La stanza delle culle. Vieni anche tu, così ci siamo tutte. Come doveva essere.
+Clic.
+! segna madre_presa
+-> Corri alle Zitelle => s_zitelle
+
+== s_zitelle
+! ambiente chiesa_allagata
+! suono vaporetto
+L'acqua alta ha invaso anche la chiesa delle Zitelle. Le panche galleggiano storte, e sull'acqua girano lente decine di candele accese, come nel palazzo di Gritti. Davanti all'altare, appoggiata sul pelo dell'acqua, c'è una culla di ferro. Vuota.
+Da una porticina dietro l'altare parte una scala di legno che sale verso il sottotetto. Da lassù arriva una musica sottile, metallica. Un carillon.
+-> Sali la scala => s_soffitta
+
+== s_soffitta
+! ambiente soffitta
+! suono carillon
+La stanza delle culle è un lungo sottotetto con le travi basse e due file di culle di ferro arrugginite, una accanto all'altra, come in un vecchio dormitorio di bambole. Le pareti sono coperte di fotografie. Centinaia. Sei tu. Il giorno della prima comunione. Al liceo. Al giuramento in polizia. Al funerale di papà. Al bar con Marco, la settimana scorsa. Tutte scattate da lontano, attraverso una finestra, da dietro un angolo.
+In fondo, legata a una sedia, c'è tua madre, con un fazzoletto in bocca e gli occhi sbarrati.
+E accanto a lei ci sei tu.
+Il tuo cappotto rosso. I tuoi capelli. La tua faccia, rovesciata. Il neo sotto l'occhio destro. Il trincetto nella mano sinistra.
+LIVIA: Finalmente. Guardaci, Giulia. Non siamo bellissime?
+-> La chiami per nome => s_nome [se segnato sa_nome]
+-> «Chi sei? Come ti chiami?» => s_nome_chiedi [se non segnato sa_nome]
+-> Le punti contro la pistola: «Polizia! Getta il coltello!» => s_pistola [se ha pistola]
+-> Ti lanci su di lei prima che tocchi la mamma => s_lotta
+
+== s_nome_chiedi
+Lei inclina la testa. Lo stesso gesto del tuo riflesso, nello specchio di Zanon.
+LIVIA: Come mi chiamo? Nessuno me l'ha mai chiesto. Qui dentro ero la quarantadue. Fuori ero «la matta delle Zitelle». Suor Benedetta mi chiamava Livia, perché sono nata livida, e non piangevo.
+Ride. Una risata senza allegria.
+LIVIA: Tu sei nata un minuto prima di me. Hai pianto subito. Per questo hanno scelto te. Un minuto, Giulia. Un minuto e un pianto.
+! segna sa_nome
+-> «Livia.» Lo dici piano, guardandola negli occhi => s_nome
+-> Le punti contro la pistola => s_pistola [se ha pistola]
+-> Ti lanci su di lei => s_lotta
+
+== s_nome
+! ambiente soffitta
+GIULIA: Livia.
+Lei si ferma. Il trincetto le trema appena nella mano. È come se quel nome, detto da te, con la tua voce, le avesse colpito un punto che nessuno aveva mai toccato.
+LIVIA: Non dirlo così. Non dirlo come se ti importasse.
+GIULIA: Mi importa. Non sapevo che esistevi. Me l'hanno tolto anche a me, Livia. Mi hanno tolto anche te.
+Il carillon, su una culla, sta rallentando. Le ultime note si sgranano una alla volta.
+-> Canti la ninna nanna, piano, come la cantavano a tutte e due => s_ninna [se segnato sentito_ninna]
+-> Carichi il carillon con la chiavetta d'ottone che hai trovato nella gondola => s_carillon [se ha chiavetta]
+-> Le tendi la mano, lentamente => s_mano
+
+== s_mano
+! suono coltello
+Tendi la mano. Lei la guarda. Poi, con un gesto velocissimo, la taglia di traverso sul palmo con il trincetto. Il dolore è bianco, accecante.
+LIVIA: Non toccarmi. Nessuno mi tocca.
+Il sangue gocciola sul pavimento di legno, tra le culle. Livia si mette dietro la sedia della mamma, il coltello alla sua gola.
+! salute -1
+-> Le punti contro la pistola => s_pistola [se ha pistola]
+-> Ti lanci su di lei => s_lotta
+
+== s_ninna
+! suono respiro
+Cominci a cantare. La voce ti trema, all'inizio. Poi si fa più sicura.
+GIULIA: Dormi, piccina, che l'acqua è salita. Una culla è vuota, una culla è fiorita.
+Livia ti fissa. Le labbra le si muovono, senza suono. Poi, piano, comincia a cantare anche lei, con la sua voce bassa e lenta, un po' in ritardo sulla tua, come un'eco.
+LIVIA: Dormi, piccina, che l'acqua è salita...
+Il trincetto le cade di mano. Rimbalza sul pavimento, tra le culle.
+E Livia piange. Per la prima volta in trentaquattro anni, Livia piange.
+-> Continua => s_gemelle_fine
+
+== s_carillon
+! suono carillon
+Prendi la chiavetta a farfalla. Ti avvicini al carillon, piano, lentamente, senza staccarle gli occhi di dosso. Lei non ti ferma. Infili la chiavetta, la giri. Una volta, due, tre.
+La ballerina riprende a girare. La ninna nanna riempie il sottotetto, chiara, intera.
+LIVIA: Quella... quella chiavetta l'avevo persa. Nella gondola. L'avevo da quando ero piccola. Era l'unica cosa mia.
+GIULIA: Te l'ho riportata.
+Livia guarda la ballerina che gira. Il trincetto le scivola dalle dita. E piange. Per la prima volta in trentaquattro anni, Livia piange.
+-> Continua => s_gemelle_fine
+
+== s_pistola
+! suono pistola_carica
+Punti la pistola. Le mani ti tremano. Dall'altra parte della canna c'è la tua faccia.
+Livia sorride e appoggia la lama sotto il mento della mamma.
+LIVIA: Spara, dai. Sei brava a fare la figlia. Vediamo se sei brava anche a fare la poliziotta. Ma attenta: siamo uguali. Sei sicura di colpire quella giusta?
+-> Fai un cenno a Marco, che è salito in silenzio dalla scala di servizio => s_marco_fine [se segnato marco_con_te]
+-> Abbassi la pistola e la chiami per nome => s_nome [se segnato sa_nome]
+-> Spari, mirando alla spalla sinistra, quella del coltello => s_sparo
+
+== s_sparo
+! suono sparo
+Lo sparo nel sottotetto è assordante. Livia barcolla all'indietro, il trincetto le vola via dalla mano. Si porta la destra alla spalla, guarda il sangue sulle dita, ti guarda. Sembra quasi sorpresa.
+Poi fa un passo indietro. Un altro. Le assi marce del pavimento, dove l'acqua alta ha infradiciato tutto per trent'anni, cedono sotto i suoi piedi con un crack secco.
+-> Continua => s_una_fine
+
+== s_marco_fine
+! suono colluttazione
+Marco sbuca dall'ombra alle spalle di Livia e le afferra il polso sinistro. Il trincetto cade. Livia si divincola come un gatto, gli morde la mano, si libera, scappa all'indietro, verso il fondo del sottotetto, dove il pavimento è nero di umidità.
+Le assi marce cedono sotto i suoi piedi con un crack secco.
+-> Continua => s_una_fine
+
+== s_lotta
+! suono colluttazione
+! salute -1
+Vi scontrate tra le culle. Siete uguali: stessa altezza, stesso peso, stessa forza. Ma lei è mancina, e tu non sei abituata a una lama che arriva dalla parte sbagliata. Il trincetto ti apre il braccio, il fianco.
+=> s_posto_fine [se salute <= 1]
+=> s_lotta_vinta
+
+== s_lotta_vinta
+! suono colluttazione
+Ma resisti. Le afferri il polso sinistro e glielo sbatti contro una culla di ferro, una, due volte, finché il trincetto non vola via. Livia ti spinge con tutta la forza che ha e arretra verso il fondo del sottotetto, dove il pavimento è nero di umidità.
+Le assi marce cedono sotto i suoi piedi con un crack secco.
+-> Continua => s_una_fine
+
+== s_posto_fine
+! ambiente laguna_alba
+! suono cuore_lento
+Le gambe non ti reggono più. Scivoli a terra, tra due culle, con la guancia sul legno umido. Livia si china su di te. Ti accarezza i capelli, con dolcezza.
+LIVIA: Shh. Dormi, piccina. Adesso tocca a me.
+L'ultima cosa che vedi è lei che si toglie il cappotto rosso, sporco di sangue, e prende il tuo.
+All'alba Marco trova l'ispettrice Giulia Sartori sul molo delle Zitelle, in cappotto rosso, che stringe la madre tra le braccia. Racconta di una pazza, di una lotta, di un corpo caduto nella laguna. Marco la abbraccia forte, piangendo di sollievo.
+Non si accorge del neo. È sotto l'occhio destro.
+! fine segreto_posto
+
+== s_una_fine
+! ambiente chiesa_allagata
+! suono tuffo
+Livia precipita attraverso il pavimento, giù, nel buio, e cade nell'acqua nera della chiesa allagata, tra le panche e le candele. Le candele si spengono tutte insieme, in un sospiro.
+Scendi di corsa. Con Marco e i sommozzatori la cercate fino all'alba, e poi per tre giorni. L'acqua alta, ritirandosi, si porta via tutto: le candele, le panche, la culla di ferro davanti all'altare. Il corpo di Livia non verrà mai trovato.
+Tua madre si salva. Il caso della Moretta viene chiuso. Tu torni in servizio dopo due mesi, e vai a vivere in un appartamento al terzo piano, dove l'acqua alta non arriva.
+Ma certe sere, sul vaporetto, nel vetro del finestrino, vedi la tua faccia sorriderti. E tu non stai sorridendo.
+! fine segreto_una
+
+== s_gemelle_fine
+! ambiente laguna_alba
+! suono campane
+Livia non oppone resistenza quando Marco le mette le manette. Si lascia portare giù per la scala, attraverso la chiesa allagata, fino al motoscafo, senza smettere di guardarti. Tua madre ti si stringe addosso, singhiozzando, e continua a ripetere due nomi. Il tuo e il suo.
+Al processo, i periti dicono quello che tu sapevi già: Livia è una donna rotta, rotta da bambina, in una stanza piena di culle vuote. Il giudice la manda in una clinica in terraferma, con un giardino e un cancello.
+Tu vai a trovarla ogni domenica. All'inizio non parla. Poi, un po' alla volta, sì. Ti racconta della stanza delle culle, della bottega delle maschere, di quanto ti ha odiata e di quanto ti ha guardata vivere. Tu le racconti di papà, di Marco, di com'era crescere a Mestre con la televisione sempre accesa.
+Una domenica di primavera, quando è il momento di andare, lei appoggia la mano sinistra sul vetro del parlatorio. Tu ci appoggi contro la destra. Combaciano perfettamente.
+Come in uno specchio. Ma per la prima volta, dall'altra parte, c'è qualcuno.
+! fine segreto_gemelle
+
+# =====================================================================
+#  MORTE GENERICA PER FERITE
+# =====================================================================
+
+== morte_ferite
+! ambiente silenzio
+! suono cuore_lento
+Le ferite si sommano, una sull'altra, come le maree. Le gambe non ti reggono più. Ti siedi per terra, con la schiena contro un muro umido, e l'acqua sale piano a cercarti.
+Hai freddo. Poi non più.
+Da qualche parte, lontano, qualcuno canta una ninna nanna. È una voce che conosci. È la tua.
+! fine morte_ferite
+</script>
+<script>// Motore del libro game: parser del formato storia + stato di gioco.
+// Funziona sia nel browser (window.LibroGame) sia in Node (module.exports).
+(function (root) {
+  "use strict";
+
+  function parseStory(src) {
+    const S = {
+      meta: {}, vars: {}, max: {}, initial: [], items: {}, clues: {}, endings: {},
+      voices: {}, paras: {}, order: [], start: null, death: null, prove: [], tipi: {}, css: "",
+    };
+    let cur = null;
+    const lines = src.replace(/\r/g, "").split("\n");
+    const err = (n, m) => { throw new Error("Riga " + (n + 1) + ": " + m); };
+    lines.forEach((raw, n) => {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) return;
+      if (line.startsWith("@")) {
+        const m = line.match(/^@(\w+)\s+(.*)$/);
+        if (!m) err(n, "intestazione non valida");
+        const [, key, rest] = m;
+        const kv = rest.match(/^(\S+)\s*=\s*(.*)$/);
+        switch (key) {
+          case "titolo": case "sottotitolo": case "riga1": case "riga2": case "sopra": case "descrizione":
+          case "scena": case "protagonista": case "fonts": case "chiave": S.meta[key] = rest; break;
+          case "css": S.css += rest + " "; break;
+          case "prova": S.prove.push({ who: kv[1] === "NARRATORE" ? null : kv[1], text: kv[2] }); break;
+          case "tipofinale": { const [et, col] = kv[2].split("|").map(s => s.trim()); S.tipi[kv[1]] = { etichetta: et, colore: col }; break; }
+          case "inizio": S.start = rest; break;
+          case "morte": S.death = rest; break;
+          case "var": { const [k, v] = rest.split(/\s+/); S.vars[k] = Number(v); break; }
+          case "max": { const [k, v] = rest.split(/\s+/); S.max[k] = Number(v); break; }
+          case "iniziale": S.initial.push(...rest.split(/\s+/)); break;
+          case "oggetto": { const [nome, desc] = kv[2].split("|").map(s => s.trim()); S.items[kv[1]] = { nome, desc: desc || "" }; break; }
+          case "indizio": S.clues[kv[1]] = kv[2].trim(); break;
+          case "finale": { const [titolo, tipo] = kv[2].split("|").map(s => s.trim()); S.endings[kv[1]] = { titolo, tipo }; break; }
+          case "voce": {
+            const p = kv[2].split("|").map(s => s.trim());
+            S.voices[kv[1]] = { genere: p[0], pitch: Number(p[1]), rate: Number(p[2]), colore: p[3] || "#ccc", nome: p[4] || kv[1] };
+            break;
+          }
+          default: err(n, "intestazione sconosciuta @" + key);
+        }
+        return;
+      }
+      if (line.startsWith("== ")) {
+        const label = line.slice(3).trim();
+        if (S.paras[label]) err(n, "paragrafo duplicato: " + label);
+        cur = { label, segs: [], effects: [], ambiente: null, suoni: [], choices: [], autos: [], line: n + 1 };
+        S.paras[label] = cur; S.order.push(label);
+        return;
+      }
+      if (!cur) err(n, "testo fuori da un paragrafo");
+      if (line.startsWith("! ")) {
+        const e = line.slice(2).trim();
+        const m = e.match(/^(\w+)\s+(.+)$/);
+        if (m && m[1] === "ambiente") cur.ambiente = m[2];
+        else if (m && m[1] === "suono") cur.suoni.push(m[2]);
+        else cur.effects.push(parseEffect(e, n));
+        return;
+      }
+      if (line.startsWith("->")) {
+        const m = line.match(/^->\s*(.+?)\s*=>\s*(\S+)\s*(?:\[se\s+([^\]]+)\])?\s*(?:\{([^}]*)\})?\s*$/);
+        if (!m) err(n, "scelta non valida");
+        cur.choices.push({
+          text: m[1], dest: m[2], cond: m[3] ? parseCond(m[3], n) : null, condSrc: m[3] || "",
+          effects: m[4] ? m[4].split(";").map(s => s.trim()).filter(Boolean).map(s => parseEffect(s, n)) : [],
+        });
+        return;
+      }
+      if (line.startsWith("=>")) {
+        const m = line.match(/^=>(!?)\s*(\S+)\s*(?:\[se\s+([^\]]+)\])?\s*$/);
+        if (!m) err(n, "instradamento non valido");
+        cur.autos.push({ silent: m[1] === "!", dest: m[2], cond: m[3] ? parseCond(m[3], n) : null, condSrc: m[3] || "" });
+        return;
+      }
+      const d = line.match(/^([A-ZÀ-Ú]{2,}):\s+(.*)$/);
+      if (d) cur.segs.push({ who: d[1], text: d[2] });
+      else cur.segs.push({ who: null, text: line });
+    });
+    return S;
+
+    function parseEffect(e, n) {
+      let m;
+      if ((m = e.match(/^(prendi|perdi|indizio|segna|togli|fine)\s+(\S+)$/))) return { op: m[1], arg: m[2] };
+      if ((m = e.match(/^(\w+)\s*([+\-=])\s*(\d+)$/))) return { op: "var", arg: m[1], mode: m[2], n: Number(m[3]) };
+      if ((m = e.match(/^(\w+)\s+([+\-])(\d+)$/))) return { op: "var", arg: m[1], mode: m[2], n: Number(m[3]) };
+      err(n, "effetto non valido: " + e);
+    }
+    function parseCond(src, n) {
+      return src.split(/\s+o\s+/).map(alt => alt.split(/\s+e\s+/).map(atom => {
+        atom = atom.trim(); let m;
+        if ((m = atom.match(/^(non\s+)?ha\s+(\S+)$/))) return { t: "ha", neg: !!m[1], x: m[2] };
+        if ((m = atom.match(/^(non\s+)?segnato\s+(\S+)$/))) return { t: "flag", neg: !!m[1], x: m[2] };
+        if ((m = atom.match(/^(\w+)\s*(>=|<=|==|!=|>|<)\s*(\w+)$/))) return { t: "cmp", a: m[1], op: m[2], b: m[3] };
+        err(n, "condizione non valida: " + atom);
+      }));
+    }
+  }
+
+  class Game {
+    constructor(story) { this.S = story; this.reset(); }
+
+    reset() {
+      const S = this.S;
+      this.st = {
+        vars: Object.assign({}, S.vars), items: S.initial.slice(), clues: [], flags: [],
+        visited: [], current: null, steps: 0, ending: null,
+      };
+    }
+
+    val(x) {
+      if (/^-?\d+$/.test(x)) return Number(x);
+      if (x === "indizi") return this.st.clues.length;
+      if (x === "cuore") return (this.st.vars.cuore_nina || 0) + (this.st.vars.cuore_ilse || 0);
+      return this.st.vars[x] || 0;
+    }
+
+    test(cond) {
+      if (!cond) return true;
+      return cond.some(all => all.every(a => {
+        let r;
+        if (a.t === "ha") r = this.st.items.includes(a.x);
+        else if (a.t === "flag") r = this.st.flags.includes(a.x);
+        else {
+          const A = this.val(a.a), B = this.val(a.b);
+          r = { ">=": A >= B, "<=": A <= B, ">": A > B, "<": A < B, "==": A === B, "!=": A !== B }[a.op];
+          return r;
+        }
+        return a.neg ? !r : r;
+      }));
+    }
+
+    apply(e, events) {
+      const st = this.st;
+      const add = (arr, x) => { if (!arr.includes(x)) { arr.push(x); return true; } return false; };
+      switch (e.op) {
+        case "prendi": if (add(st.items, e.arg)) events.push({ tipo: "oggetto", id: e.arg }); break;
+        case "perdi": { const i = st.items.indexOf(e.arg); if (i >= 0) { st.items.splice(i, 1); events.push({ tipo: "perso", id: e.arg }); } break; }
+        case "indizio": if (add(st.clues, e.arg)) events.push({ tipo: "indizio", id: e.arg }); break;
+        case "segna": add(st.flags, e.arg); break;
+        case "togli": { const i = st.flags.indexOf(e.arg); if (i >= 0) st.flags.splice(i, 1); break; }
+        case "fine": st.ending = e.arg; break;
+        case "var": {
+          const before = st.vars[e.arg] || 0;
+          let v = e.mode === "+" ? before + e.n : e.mode === "-" ? before - e.n : e.n;
+          if (this.S.max[e.arg] != null) v = Math.min(v, this.S.max[e.arg]);
+          st.vars[e.arg] = v;
+          if (e.arg === "salute" && v !== before) events.push({ tipo: v < before ? "ferita" : "cura", n: v });
+          break;
+        }
+      }
+    }
+
+    // Esegue la scelta i-esima (fra quelle visibili) del paragrafo corrente.
+    choose(choice) {
+      const events = [];
+      (choice.effects || []).forEach(e => this.apply(e, events));
+      return this.goto(choice.dest, events);
+    }
+
+    goto(label, events) {
+      events = events || [];
+      const S = this.S;
+      let guard = 0;
+      for (;;) {
+        if (++guard > 50) throw new Error("Ciclo di instradamenti infinito su " + label);
+        const p = S.paras[label];
+        if (!p) throw new Error("Paragrafo inesistente: " + label);
+        const first = !this.st.visited.includes(label);
+        if (first) { this.st.visited.push(label); p.effects.forEach(e => this.apply(e, events)); }
+        this.st.current = label; this.st.steps++;
+        if (!this.st.ending && this.st.vars.salute != null && this.st.vars.salute <= 0 && S.death && label !== S.death) {
+          label = S.death; continue;
+        }
+        const silent = p.autos.find(a => a.silent && this.test(a.cond));
+        if (silent) { label = silent.dest; continue; }
+        return { para: p, events, view: this.view() };
+      }
+    }
+
+    start() { this.reset(); return this.goto(this.S.start); }
+
+    view() {
+      const p = this.S.paras[this.st.current];
+      if (this.st.ending) return { ending: this.S.endings[this.st.ending] ? Object.assign({ id: this.st.ending }, this.S.endings[this.st.ending]) : { id: this.st.ending, titolo: "Fine", tipo: "?" }, choices: [] };
+      const auto = p.autos.find(a => !a.silent && this.test(a.cond));
+      if (auto) return { choices: [{ text: "Continua", dest: auto.dest, effects: [], auto: true }] };
+      return { choices: p.choices.filter(c => this.test(c.cond)) };
+    }
+
+    save() { return JSON.stringify(this.st); }
+    load(json) { this.st = Object.assign({}, this.st, JSON.parse(json)); return { para: this.S.paras[this.st.current], events: [], view: this.view() }; }
+  }
+
+  const api = { parseStory, Game };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.LibroGame = api;
+})(this);
+</script>
+<script>// Motore sonoro: ambienti e rumori generati con Web Audio (nessun file esterno).
+(function (root) {
+  "use strict";
+  const A = { ctx: null, ready: false, ambLevel: 0.7, sfxLevel: 0.8, duck: 1 };
+  let ctx, master, ambBus, sfxBus, revShort, revLong, revSfx, noise = {};
+  let current = null, currentName = null;
+  const R = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  A.init = function () {
+    if (A.ready) { if (ctx.state === "suspended") ctx.resume(); return; }
+    const AC = root.AudioContext || root.webkitAudioContext;
+    if (!AC) return;
+    ctx = A.ctx = new AC();
+    master = ctx.createGain(); master.gain.value = 1; master.connect(ctx.destination);
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    comp.connect(master);
+    ambBus = ctx.createGain(); ambBus.gain.value = A.ambLevel; ambBus.connect(comp);
+    sfxBus = ctx.createGain(); sfxBus.gain.value = A.sfxLevel; sfxBus.connect(comp);
+    noise.white = makeNoise("white"); noise.pink = makeNoise("pink"); noise.brown = makeNoise("brown");
+    revShort = makeReverb(1.6, 2.5); revLong = makeReverb(5.5, 1.6); revSfx = makeReverb(1.8, 2.2);
+    revShort.out.connect(ambBus); revLong.out.connect(ambBus); revSfx.out.gain.value = 0.5; revSfx.out.connect(sfxBus);
+    A.ready = true;
+  };
+
+  function makeNoise(kind) {
+    const len = ctx.sampleRate * 4, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      if (kind === "white") d[i] = w * 0.5;
+      else if (kind === "pink") {
+        b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+        b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+        d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926;
+      } else { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+    }
+    return buf;
+  }
+  function makeReverb(sec, decay) {
+    const len = ctx.sampleRate * sec, buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    const conv = ctx.createConvolver(); conv.buffer = buf;
+    const out = ctx.createGain(); out.gain.value = 0.9; conv.connect(out);
+    return { input: conv, out };
+  }
+  function src(kind, rate) {
+    const s = ctx.createBufferSource(); s.buffer = noise[kind]; s.loop = true;
+    s.playbackRate.value = rate || 1; s.loopStart = Math.random() * 3; s.start(0, Math.random() * 3);
+    return s;
+  }
+  function filt(type, f, q) { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q != null) b.Q.value = q; return b; }
+  function gain(v) { const g = ctx.createGain(); g.gain.value = v; return g; }
+  function chain(...n) { for (let i = 0; i < n.length - 1; i++) n[i].connect(n[i + 1]); return n[n.length - 1]; }
+
+  // ------------------------------------------------------------------ eventi brevi (usati da ambienti e suoni)
+  // dest: nodo di uscita; t: tempo assoluto
+  function env(g, t, a, peak, d, sustainEnd) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + a + d + (sustainEnd || 0));
+  }
+  function tone(dest, t, f, dur, o) {
+    o = o || {};
+    const osc = ctx.createOscillator(); osc.type = o.type || "sine";
+    osc.frequency.setValueAtTime(f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + (o.glide || dur));
+    if (o.vib) { const l = ctx.createOscillator(), lg = gain(o.vibDepth || f * 0.02); l.frequency.value = o.vib; l.connect(lg); lg.connect(osc.frequency); l.start(t); l.stop(t + dur + 0.1); }
+    const g = gain(0); env(g, t, o.a || 0.005, o.v || 0.3, dur);
+    let last = osc.connect(g);
+    if (o.filter) { const f2 = filt(o.filter[0], o.filter[1], o.filter[2]); g.connect(f2); last = f2; }
+    last.connect(dest);
+    osc.start(t); osc.stop(t + (o.a || 0.005) + dur + 0.05);
+  }
+  function burst(dest, t, dur, o) {
+    o = o || {};
+    const s = ctx.createBufferSource(); s.buffer = noise[o.kind || "white"];
+    const f = filt(o.type || "bandpass", o.f || 1000, o.q != null ? o.q : 1);
+    if (o.fTo) f.frequency.exponentialRampToValueAtTime(o.fTo, t + dur);
+    const g = gain(0); env(g, t, o.a || 0.003, o.v || 0.4, dur, o.hold);
+    chain(s, f, g, dest);
+    s.start(t, Math.random() * 3); s.stop(t + (o.a || 0.003) + dur + (o.hold || 0) + 0.05);
+  }
+  const ev = {
+    drip(d, t, v) { const f = R(900, 2200); tone(d, t, f, 0.07, { to: f * 0.45, v: v || 0.12, glide: 0.06 }); },
+    clink(d, t, v) { const f = R(2400, 3600); tone(d, t, f, 0.25, { v: (v || 0.08) }); tone(d, t, f * 2.71, 0.12, { v: (v || 0.08) * 0.5 }); },
+    knock(d, t, v) { burst(d, t, 0.07, { type: "lowpass", f: 400, v: v || 0.7, kind: "brown" }); tone(d, t, 110, 0.08, { v: (v || 0.7) * 0.5, to: 70 }); },
+    step(d, t, v, f) { burst(d, t, 0.06, { type: "bandpass", f: f || 700, q: 1.2, v: v || 0.35 }); },
+    heel(d, t, v) { burst(d, t, 0.03, { type: "highpass", f: 2500, v: v || 0.3 }); tone(d, t, 1900, 0.04, { v: (v || 0.3) * 0.3 }); },
+    gull(d, t, v) {
+      const n = Math.floor(R(2, 5));
+      for (let i = 0; i < n; i++) { const tt = t + i * R(0.28, 0.4), f = R(1600, 2100); tone(d, tt, f, 0.26, { type: "triangle", to: f * 0.62, v: (v || 0.06), vib: 28, vibDepth: 60, filter: ["bandpass", 1600, 1] }); }
+    },
+    chirp(d, t, v) { const n = Math.floor(R(2, 6)), f = R(3200, 5200); for (let i = 0; i < n; i++) tone(d, t + i * 0.08, f * R(0.9, 1.1), 0.06, { to: f * 1.3, v: v || 0.03 }); },
+    bell(d, t, v, base, far) {
+      base = base || R(180, 300);
+      const bus = far ? chain(gain(1), filt("lowpass", 1800)) : gain(1); bus.connect(d);
+      const node = far ? bus : bus;
+      [0.5, 1, 1.19, 1.5, 2, 2.74, 3.0, 4.07].forEach((r, i) => tone(far ? node : d, t, base * r, R(2.5, 4.5) / (1 + i * 0.3), { v: (v || 0.1) / (1 + i * 0.6), a: 0.004 }));
+    },
+    tick(d, t, v, hi) { burst(d, t, 0.012, { type: "bandpass", f: hi ? 3800 : 3000, q: 8, v: v || 0.12 }); },
+    crackle(d, t, v) { burst(d, t, R(0.004, 0.015), { type: "highpass", f: R(1500, 4000), v: v || R(0.05, 0.25) }); },
+    creak(d, t, v) {
+      const dur = R(0.5, 1.4), f = R(70, 140), o = ctx.createOscillator(); o.type = "sawtooth";
+      o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * R(0.7, 1.4), t + dur);
+      const bp = filt("bandpass", R(500, 900), 6), g = gain(0), am = ctx.createOscillator(), amg = gain(0.5);
+      am.type = "square"; am.frequency.value = R(18, 40); am.connect(amg); amg.connect(g.gain);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v || 0.08, t + dur * 0.3); g.gain.linearRampToValueAtTime(0, t + dur);
+      chain(o, bp, g, d); o.start(t); o.stop(t + dur + 0.05); am.start(t); am.stop(t + dur + 0.05);
+    },
+    syllables(d, t, v, formant) {
+      const n = Math.floor(R(3, 9)); let tt = t;
+      for (let i = 0; i < n; i++) { const dur = R(0.08, 0.22); burst(d, tt, dur, { kind: "pink", type: "bandpass", f: formant * R(0.7, 1.5), q: R(3, 7), v: v * R(0.5, 1), a: 0.03 }); tt += dur + R(0.02, 0.08); }
+      return tt;
+    },
+    laugh(d, t, v) { const f = R(500, 900); for (let i = 0; i < Math.floor(R(4, 7)); i++) burst(d, t + i * 0.13, 0.08, { kind: "pink", type: "bandpass", f: f * (1 - i * 0.04), q: 6, v: v * (1 - i * 0.1), a: 0.01 }); },
+    thump(d, t, v) { tone(d, t, 70, 0.25, { to: 40, v: v || 0.6 }); burst(d, t, 0.06, { type: "lowpass", f: 250, v: (v || 0.6) * 0.5, kind: "brown" }); },
+    splash(d, t, v) { burst(d, t, 0.5, { type: "lowpass", f: 3000, fTo: 400, v: v || 0.5, a: 0.01 }); for (let i = 0; i < 6; i++) { const f = R(300, 900); tone(d, t + R(0.05, 0.6), f, 0.05, { to: f * 2, v: 0.05 }); } },
+    clack(d, t, v) { burst(d, t, 0.02, { type: "bandpass", f: 2200, q: 3, v: v || 0.2 }); tone(d, t, 900, 0.03, { v: (v || 0.2) * 0.3 }); },
+    hoof(d, t, v) { ev.step(d, t, v || 0.15, 1200); ev.step(d, t + 0.12, (v || 0.15) * 0.8, 1000); },
+    hiss(d, t, v, dur) { burst(d, t, dur || 1.2, { type: "highpass", f: 3000, v: v || 0.08, a: 0.15 }); },
+    chuff(d, t, v) { burst(d, t, 0.25, { type: "bandpass", f: 500, q: 0.8, v: v || 0.2, a: 0.02 }); },
+    moan(d, t, v) {
+      const dur = R(2, 4), s = src("pink"), f1 = filt("bandpass", 400, 12), f2 = filt("bandpass", 900, 10), g = gain(0);
+      f1.frequency.linearRampToValueAtTime(R(300, 600), t + dur); f2.frequency.linearRampToValueAtTime(R(700, 1200), t + dur);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v || 0.3, t + dur * 0.4); g.gain.linearRampToValueAtTime(0, t + dur);
+      s.connect(f1); s.connect(f2); f1.connect(g); f2.connect(g); g.connect(d); setTimeout(() => s.stop(), (dur + 1) * 1000);
+    },
+  };
+
+
+  // ninna nanna originale della Moretta (la minore, 3/4)
+  const NINNA = [[659.25, 1], [587.33, .5], [523.25, .5], [493.88, 1], [440, 2], [523.25, 1], [493.88, .5], [440, .5], [415.3, 1], [329.63, 2],
+    [440, 1], [523.25, 1], [659.25, 1], [587.33, 1.5], [523.25, .5], [493.88, 1], [523.25, 1], [493.88, 1], [440, 3]];
+  function box(d, t, f, v) { tone(d, t, f, 1.4, { v: v, a: .002 }); tone(d, t, f * 4.2, .35, { v: v * .25, a: .001 }); tone(d, t, f * 2, .6, { v: v * .3, a: .002 }); }
+  function ninna(d, t, v, beat, rall) {
+    let tt = t; NINNA.forEach(([f, b], i) => { box(d, tt, f, v); tt += b * beat * (rall ? 1 + i * .04 : 1); }); return tt - t;
+  }
+
+  // ------------------------------------------------------------------ strati continui
+  function layer(out, build) { const g = gain(0); g.connect(out); const h = { g, timers: [], nodes: [] }; build(h, g); return h; }
+  function every(h, minS, maxS, fn) {
+    const go = () => { if (h.dead) return; fn(ctx.currentTime + 0.05); h.timers.push(setTimeout(go, R(minS, maxS) * 1000)); };
+    h.timers.push(setTimeout(go, R(0, maxS) * 600));
+  }
+  const L = {
+    wind(o) {
+      return h => {
+        const s = src("pink"), bp = filt(o.muffled ? "lowpass" : "bandpass", o.muffled ? 350 : 520, o.muffled ? 0.7 : 0.6), g = gain(o.v || 0.5);
+        chain(s, bp, g, h.g); h.nodes.push(s);
+        every(h, 1.5, 4, t => {
+          const lvl = (o.v || 0.5) * R(0.35, 1.25);
+          g.gain.linearRampToValueAtTime(lvl, t + R(0.8, 2.2));
+          if (!o.muffled) bp.frequency.linearRampToValueAtTime(R(350, 900) * (o.tunnel ? 0.6 : 1), t + 2);
+        });
+        if (o.whistle) {
+          const w = src("white"), wf = filt("bandpass", 1200, 18), wg = gain(0);
+          chain(w, wf, wg, h.g); h.nodes.push(w);
+          every(h, 2, 6, t => {
+            wf.frequency.linearRampToValueAtTime(R(700, 1700), t + R(1, 3));
+            wg.gain.linearRampToValueAtTime(o.whistle * R(0, 1), t + R(0.8, 2));
+          });
+        }
+        if (o.shutters) every(h, 4, 11, t => { ev.knock(h.g, t, 0.18); if (Math.random() < 0.6) ev.knock(h.g, t + R(0.1, 0.25), 0.12); });
+      };
+    },
+    sea(o) {
+      return h => {
+        const s = src("brown"), lp = filt("lowpass", o.muffled ? 300 : 700), g = gain(0.05);
+        const w = src("white"), hp = filt("highpass", 2500), wg = gain(0);
+        chain(s, lp, g, h.g); chain(w, hp, wg, h.g); h.nodes.push(s, w);
+        const v = o.v || 0.5;
+        every(h, 5, 9, t => {
+          const up = R(1.8, 3);
+          g.gain.linearRampToValueAtTime(v * R(0.7, 1.1), t + up); g.gain.linearRampToValueAtTime(v * 0.2, t + up + R(2, 4));
+          if (!o.muffled) { wg.gain.linearRampToValueAtTime(v * 0.05, t + up + 0.2); wg.gain.linearRampToValueAtTime(0, t + up + 2); }
+        });
+      };
+    },
+    river(o) { return h => { const a = src("pink", 0.8), b = src("brown"); chain(a, filt("lowpass", 1400), gain(o.v * 0.9), h.g); chain(b, filt("lowpass", 300), gain(o.v * 0.6), h.g); h.nodes.push(a, b); }; },
+    room(o) { return h => { const s = src("brown"); chain(s, filt("lowpass", 160), gain(o.v || 0.15), h.g); h.nodes.push(s); }; },
+    rumble(o) { return h => { const s = src("brown", 0.5); chain(s, filt("lowpass", 90), gain(o.v || 0.4), h.g); h.nodes.push(s); }; },
+    fountain(o) { return h => { const s = src("white"); chain(s, filt("bandpass", 2600, 0.8), gain(o.v || 0.06), h.g); h.nodes.push(s); every(h, 0.1, 0.4, t => { const f = R(500, 1200); tone(h.g, t, f, 0.04, { to: f * 1.8, v: 0.02 }); }); }; },
+    drips(o) { return h => every(h, o.min || 0.8, o.max || 3, t => ev.drip(h.wet || h.g, t, o.v)); },
+    crowd(o) {
+      return h => {
+        const d = o.far ? chain(gain(1), filt("lowpass", 900)) : gain(1); d.connect(h.g);
+        const bed = src("pink"); chain(bed, filt("bandpass", 700, 0.8), gain((o.v || 0.4) * 0.12), d); h.nodes.push(bed);
+        const n = o.n || 4;
+        for (let i = 0; i < n; i++) {
+          const formant = R(450, 1100);
+          every(h, 0.6, 2.4, t => ev.syllables(d, t, (o.v || 0.4) * 0.35, formant));
+        }
+        if (o.laugh) every(h, 6, 16, t => ev.laugh(d, t, (o.v || 0.4) * 0.3));
+      };
+    },
+    cups(o) { return h => every(h, o.min || 2, o.max || 6, t => { ev.clink(h.g, t, o.v); if (Math.random() < 0.3) ev.clink(h.g, t + 0.09, (o.v || 0.08) * 0.6); }); },
+    gulls(o) { return h => every(h, o.min || 6, o.max || 15, t => ev.gull(h.wet || h.g, t, o.v)); },
+    birds(o) { return h => every(h, o.min || 0.8, o.max || 3, t => ev.chirp(h.g, t, o.v)); },
+    bells(o) { return h => every(h, o.min || 20, o.max || 40, t => { for (let i = 0; i < 3; i++) ev.bell(h.g, t + i * 1.6, o.v || 0.05, 220 - i * 30, true); }); },
+    clock(o) { return h => { let k = 0; const go = () => { if (h.dead) return; ev.tick(h.g, ctx.currentTime + 0.02, o.v || 0.06, (k++) % 2); h.timers.push(setTimeout(go, 1000)); }; go(); }; },
+    fire(o) { return h => { const s = src("brown"); chain(s, filt("lowpass", 400), gain((o.v || 0.3) * 0.3), h.g); h.nodes.push(s); every(h, 0.05, 0.4, t => ev.crackle(h.g, t, (o.v || 0.3) * R(0.1, 0.6))); }; },
+    creaks(o) { return h => every(h, o.min || 3, o.max || 8, t => ev.creak(h.g, t, o.v)); },
+    hooves(o) { return h => every(h, o.min || 6, o.max || 14, t => { for (let i = 0; i < 6; i++) ev.hoof(h.g, t + i * 0.42, (o.v || 0.1) * (1 - Math.abs(i - 3) / 4)); }); },
+    steam(o) { return h => every(h, 5, 12, t => ev.hiss(h.g, t, o.v || 0.06, R(0.8, 2))); },
+    chuffs(o) { return h => every(h, 0.9, 1.2, t => ev.chuff(h.g, t, o.v || 0.12)); },
+    typing(o) { return h => every(h, 6, 15, t => { const n = Math.floor(R(6, 20)); for (let i = 0; i < n; i++) ev.clack(h.g, t + i * R(0.09, 0.2), o.v || 0.06); }); },
+    footsteps(o) { return h => every(h, 8, 20, t => { for (let i = 0; i < 8; i++) ev.step(h.wet || h.g, t + i * 0.55, (o.v || 0.1) * (1 - Math.abs(i - 4) / 5), 900); }); },
+    moans(o) { return h => every(h, 4, 9, t => ev.moan(h.g, t, o.v || 0.15)); },
+    heart(o) { return h => { const go = () => { if (h.dead) return; const t = ctx.currentTime + 0.02; ev.thump(h.g, t, o.v || 0.3); ev.thump(h.g, t + 0.28, (o.v || 0.3) * 0.6); h.timers.push(setTimeout(go, 1400)); }; go(); }; },
+    tuning(o) {
+      return h => {
+        const d = chain(gain(1), filt("lowpass", 2200)); d.connect(h.g);
+        every(h, 1, 3, t => { const f = pick([220, 330, 440, 293.7, 146.8]) * R(0.995, 1.005), dur = R(1.5, 4); tone(d, t, f, dur, { type: "sawtooth", a: 0.4, v: (o.v || 0.03), vib: 5, vibDepth: 2 }); });
+      };
+    },
+
+    rain(o) {
+      return h => {
+        const s = src("white"), f = filt(o.muffled ? "lowpass" : "bandpass", o.muffled ? 900 : 3500, o.muffled ? 0.7 : 0.4);
+        chain(s, f, gain(o.v || 0.1), h.g); h.nodes.push(s);
+        if (!o.muffled) every(h, .02, .12, t => ev.crackle(h.g, t, (o.v || .1) * R(.2, .8)));
+      };
+    },
+    hum(o) { return h => { const a = ctx.createOscillator(), b = ctx.createOscillator(); a.frequency.value = 50; b.frequency.value = 100; b.type = "triangle"; const g = gain(o.v || .02); a.connect(g); b.connect(g); g.connect(h.g); a.start(); b.start(); h.nodes.push(a, b); }; },
+    lapping(o) { return h => { every(h, .5, 2.2, t => burst(h.wet || h.g, t, R(.15, .4), { kind: "brown", type: "lowpass", f: R(500, 1100), v: (o.v || .3) * R(.4, 1), a: .05 })); }; },
+    foghorn(o) { return h => every(h, o.min || 25, o.max || 45, t => { const d = chain(gain(1), filt("lowpass", 500)); d.connect(h.g); tone(d, t, 98, 3.2, { type: "sawtooth", v: o.v || .05, a: .6 }); tone(d, t, 98.6, 3.2, { type: "sawtooth", v: (o.v || .05) * .7, a: .6 }); }); },
+    engine(o) { return h => { const go = () => { if (h.dead) return; const t = ctx.currentTime + .02; burst(h.g, t, .06, { kind: "brown", type: "lowpass", f: 300, v: o.v || .12 }); h.timers.push(setTimeout(go, (o.rate || 110) + Math.random() * 20)); }; go(); }; },
+    organ(o) {
+      return h => {
+        const d = chain(gain(1), filt("lowpass", 1400)); d.connect(h.wet || h.g);
+        [110, 164.81, 220, 261.63].forEach((f, i) => { const os = ctx.createOscillator(); os.type = i % 2 ? "triangle" : "sine"; os.frequency.value = f; const g = gain(0); os.connect(g); g.connect(d); os.start(); h.nodes.push(os);
+          every(h, 4, 9, t => g.gain.linearRampToValueAtTime((o.v || .015) * R(.2, 1), t + 3)); });
+      };
+    },
+    carillon(o) { return h => { const go = () => { if (h.dead) return; const dur = ninna(h.wet || h.g, ctx.currentTime + .1, o.v || .04, .42, false); h.timers.push(setTimeout(go, (dur + R(4, 10)) * 1000)); }; go(); }; },
+    whispers(o) {
+      return h => every(h, o.min || 3, o.max || 9, t => {
+        const n = Math.floor(R(4, 12)); let tt = t, pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        const d = gain(1); if (pan) { pan.pan.value = R(-.9, .9); d.connect(pan); pan.connect(h.g); } else d.connect(h.g);
+        for (let i = 0; i < n; i++) { const du = R(.05, .16); burst(d, tt, du, { type: "bandpass", f: R(2500, 5500), q: R(2, 5), v: (o.v || .05) * R(.4, 1), a: .02 }); tt += du + R(.01, .06); }
+      });
+    },
+    phones(o) { return h => every(h, o.min || 8, o.max || 20, t => { for (let i = 0; i < 2; i++) { tone(h.g, t + i * .5, 880, .18, { v: o.v || .03 }); tone(h.g, t + i * .5 + .2, 740, .18, { v: o.v || .03 }); } }); },
+    waltz(o) {
+      return h => {
+        const d = chain(gain(1), filt("lowpass", 2600)); d.connect(h.g); d.connect(revShort.input);
+        // melodia originale in 3/4 (gradi della scala di Re maggiore, 0 = pausa)
+        const sc = [0, 293.66, 329.63, 369.99, 392, 440, 493.88, 554.37, 587.33, 659.25, 739.99];
+        const mel = [5, 6, 5, 8, 0, 7, 6, 0, 5, 4, 3, 4, 5, 0, 0, 0, 3, 4, 3, 6, 0, 5, 4, 0, 3, 2, 1, 2, 3, 0, 0, 0,
+          5, 6, 5, 8, 0, 9, 8, 0, 7, 6, 5, 6, 8, 0, 7, 0, 6, 5, 4, 3, 0, 5, 2, 0, 3, 2, 1, 1, 0, 0, 0, 0];
+        const bass = [146.83, 146.83, 196, 196, 110, 110, 146.83, 146.83, 146.83, 146.83, 196, 196, 110, 110, 146.83, 146.83];
+        const chords = [[369.99, 440], [369.99, 440], [392, 493.88], [392, 493.88], [329.63, 392], [329.63, 392], [369.99, 440], [369.99, 440]];
+        const beat = 60 / 168; let step = 0;
+        const go = () => {
+          if (h.dead) return;
+          const t = ctx.currentTime + 0.05, bar = Math.floor(step / 3), b = step % 3, v = o.v || 0.05;
+          if (b === 0) tone(d, t, bass[bar % 16], beat * 1.4, { type: "triangle", v: v * 1.6 });
+          else chords[bar % 8].forEach(f => tone(d, t, f, beat * 0.5, { type: "triangle", v: v * 0.6 }));
+          const m = mel[step % mel.length]; if (m) tone(d, t, sc[m] * 2, beat * 0.9, { type: "sine", v: v * 1.2, vib: 5.5, vibDepth: 4, a: 0.02 });
+          step++; h.timers.push(setTimeout(go, beat * 1000));
+        };
+        go();
+      };
+    },
+  };
+
+  // ------------------------------------------------------------------ ricette degli ambienti
+  const AMB = {
+    bora_notte: [["wind", { v: 0.9, whistle: 0.08, shutters: 1 }]],
+    bora_giorno: [["wind", { v: 0.8, whistle: 0.06 }], ["crowd", { v: 0.25, far: 1, n: 3 }], ["bells", { v: 0.04 }]],
+    stanza_notte: [["room", { v: 0.12 }], ["wind", { v: 0.5, muffled: 1, shutters: 1 }], ["clock", { v: 0.04 }]],
+    stanza_sera: [["room", { v: 0.12 }], ["clock", { v: 0.04 }], ["crowd", { v: 0.2, far: 1, n: 3, laugh: 1 }], ["wind", { v: 0.25, muffled: 1 }]],
+    stanza_giorno: [["room", { v: 0.12 }], ["crowd", { v: 0.12, far: 1, n: 2 }], ["wind", { v: 0.3, muffled: 1 }]],
+    porto_notte: [["wind", { v: 0.6, whistle: 0.04 }], ["sea", { v: 0.6 }], ["creaks", { v: 0.07 }], ["gulls", { v: 0.03, min: 15, max: 30 }]],
+    stiva: [["room", { v: 0.2 }], ["sea", { v: 0.5, muffled: 1 }], ["creaks", { v: 0.1, min: 2, max: 5 }], ["drips", { v: 0.05, min: 2, max: 6 }]],
+    nave_ponte: [["room", { v: 0.15 }], ["creaks", { v: 0.07 }], ["fire", { v: 0.25 }], ["wind", { v: 0.35, muffled: 1 }], ["sea", { v: 0.3, muffled: 1 }]],
+    caffe: [["crowd", { v: 0.55, n: 6, laugh: 1 }], ["cups", { v: 0.07, min: 1, max: 3 }], ["steam", { v: 0.04 }], ["wind", { v: 0.15, muffled: 1 }]],
+    caffe_vuoto: [["room", { v: 0.12 }], ["clock", { v: 0.05 }], ["cups", { v: 0.04, min: 8, max: 18 }], ["wind", { v: 0.2, muffled: 1 }]],
+    caffe_elegante: [["crowd", { v: 0.3, n: 4 }], ["cups", { v: 0.05, min: 2, max: 5 }], ["clock", { v: 0.03 }]],
+    commissariato: [["room", { v: 0.12 }], ["clock", { v: 0.05 }], ["fire", { v: 0.15 }], ["footsteps", { v: 0.06 }]],
+    archivio: [["room", { v: 0.15 }], ["clock", { v: 0.03 }], ["drips", { v: 0.02, min: 6, max: 14 }]],
+    molo_sera: [["sea", { v: 0.8 }], ["wind", { v: 0.55, whistle: 0.03 }], ["gulls", { v: 0.02, min: 20, max: 40 }]],
+    molo_alba: [["sea", { v: 0.7 }], ["wind", { v: 0.3 }], ["gulls", { v: 0.05, min: 4, max: 10 }]],
+    teatro: [["crowd", { v: 0.5, n: 6, laugh: 1 }], ["tuning", { v: 0.025 }]],
+    ballo: [["waltz", { v: 0.045 }], ["crowd", { v: 0.25, n: 4, laugh: 1 }], ["cups", { v: 0.04, min: 3, max: 7 }]],
+    citta_giorno: [["crowd", { v: 0.35, far: 1, n: 4 }], ["hooves", { v: 0.1 }], ["gulls", { v: 0.04, min: 8, max: 18 }], ["wind", { v: 0.3 }]],
+    vicoli: [["fountain", { v: 0.07 }], ["wind", { v: 0.3 }], ["crowd", { v: 0.12, far: 1, n: 2 }]],
+    cunicoli: [["rumble", { v: 0.25 }], ["drips", { v: 0.09, min: 0.6, max: 2.5 }], ["wind", { v: 0.15, tunnel: 1 }]],
+    cantine: [["rumble", { v: 0.2 }], ["fire", { v: 0.2 }], ["drips", { v: 0.06, min: 1, max: 4 }]],
+    cisterna: [["rumble", { v: 0.2 }], ["drips", { v: 0.12, min: 0.4, max: 1.6 }], ["sea", { v: 0.15, muffled: 1 }]],
+    galleria: [["wind", { v: 0.35, tunnel: 1 }], ["rumble", { v: 0.3 }], ["drips", { v: 0.05, min: 3, max: 8 }]],
+    abisso: [["rumble", { v: 0.6 }], ["river", { v: 0.15 }], ["wind", { v: 0.3, tunnel: 1, whistle: 0.04 }], ["drips", { v: 0.08, min: 1, max: 3 }]],
+    fiume: [["river", { v: 0.55 }], ["rumble", { v: 0.4 }], ["drips", { v: 0.08, min: 1, max: 3 }]],
+    risorgive: [["river", { v: 0.25 }], ["sea", { v: 0.4 }], ["gulls", { v: 0.05, min: 4, max: 10 }], ["birds", { v: 0.02, min: 2, max: 6 }]],
+    alba_mare: [["sea", { v: 0.6 }], ["gulls", { v: 0.05, min: 3, max: 9 }], ["wind", { v: 0.2 }]],
+    guardina: [["room", { v: 0.15 }], ["drips", { v: 0.05, min: 2, max: 6 }], ["footsteps", { v: 0.08 }]],
+    osteria: [["crowd", { v: 0.45, n: 5, laugh: 1 }], ["cups", { v: 0.07, min: 1, max: 4 }], ["fire", { v: 0.2 }]],
+    redazione: [["room", { v: 0.12 }], ["clock", { v: 0.05 }], ["typing", { v: 0.04 }], ["wind", { v: 0.2, muffled: 1 }]],
+    magazzino: [["wind", { v: 0.9, whistle: 0.07, shutters: 1 }], ["creaks", { v: 0.12, min: 1.5, max: 4 }], ["sea", { v: 0.3, muffled: 1 }]],
+    stazione: [["crowd", { v: 0.4, n: 5 }], ["chuffs", { v: 0.08 }], ["steam", { v: 0.08 }], ["bells", { v: 0.03, min: 25, max: 45 }]],
+    stazione_vuota: [["wind", { v: 0.35 }], ["birds", { v: 0.015, min: 4, max: 10 }], ["room", { v: 0.1 }]],
+    primavera: [["birds", { v: 0.03 }], ["sea", { v: 0.25 }], ["gulls", { v: 0.03, min: 8, max: 16 }], ["crowd", { v: 0.15, far: 1, n: 2 }]],
+    manicomio: [["room", { v: 0.15 }], ["clock", { v: 0.04 }], ["footsteps", { v: 0.07 }], ["birds", { v: 0.008, min: 4, max: 10 }]],
+    manicomio_giardino: [["birds", { v: 0.035, min: 0.6, max: 2 }], ["wind", { v: 0.1 }], ["sea", { v: 0.1, muffled: 1 }]],
+
+    appartamento_notte: [["room", { v: 0.12 }], ["rain", { v: 0.08, muffled: 1 }], ["clock", { v: 0.04 }], ["hum", { v: 0.01 }]],
+    appartamento_giorno: [["room", { v: 0.12 }], ["rain", { v: 0.05, muffled: 1 }], ["footsteps", { v: 0.04 }]],
+    laguna_notte: [["sea", { v: 0.25, muffled: 1 }], ["lapping", { v: 0.25 }], ["wind", { v: 0.2 }], ["foghorn", { v: 0.04 }], ["bells", { v: 0.02, min: 40, max: 70 }]],
+    laguna_giorno: [["sea", { v: 0.35 }], ["gulls", { v: 0.04, min: 6, max: 14 }], ["engine", { v: 0.03, rate: 160 }], ["wind", { v: 0.15 }]],
+    laguna_alba: [["sea", { v: 0.4 }], ["gulls", { v: 0.05, min: 4, max: 10 }], ["bells", { v: 0.04, min: 15, max: 30 }], ["wind", { v: 0.12 }]],
+    calle_notte: [["lapping", { v: 0.3 }], ["drips", { v: 0.06, min: 1, max: 3 }], ["rain", { v: 0.04 }], ["footsteps", { v: 0.06 }], ["whispers", { v: 0.015, min: 10, max: 25 }]],
+    casa_buia: [["room", { v: 0.15 }], ["lapping", { v: 0.15 }], ["drips", { v: 0.08, min: 1, max: 3 }], ["whispers", { v: 0.02, min: 6, max: 14 }]],
+    citta_pioggia: [["rain", { v: 0.12 }], ["crowd", { v: 0.15, far: 1, n: 3 }], ["footsteps", { v: 0.06 }], ["engine", { v: 0.015, rate: 150 }]],
+    negozio: [["room", { v: 0.1 }], ["clock", { v: 0.04 }], ["rain", { v: 0.05, muffled: 1 }], ["crowd", { v: 0.1, far: 1, n: 2 }]],
+    casa_madre: [["room", { v: 0.1 }], ["crowd", { v: 0.12, far: 1, n: 2, laugh: 1 }], ["hum", { v: 0.012 }], ["clock", { v: 0.04 }]],
+    istituto: [["room", { v: 0.15 }], ["wind", { v: 0.3, muffled: 1 }], ["drips", { v: 0.04, min: 3, max: 8 }], ["organ", { v: 0.008 }], ["bells", { v: 0.02, min: 30, max: 60 }]],
+    archivio_umido: [["rumble", { v: 0.2 }], ["drips", { v: 0.1, min: 0.5, max: 2 }], ["lapping", { v: 0.12 }]],
+    palazzo: [["room", { v: 0.12 }], ["clock", { v: 0.05 }], ["lapping", { v: 0.08 }], ["rain", { v: 0.04, muffled: 1 }]],
+    bora_laguna: [["wind", { v: 0.8, whistle: 0.05, shutters: 1 }], ["rain", { v: 0.12 }], ["sea", { v: 0.4 }]],
+    palazzo_allagato: [["lapping", { v: 0.35 }], ["drips", { v: 0.09, min: 0.6, max: 2 }], ["whispers", { v: 0.025, min: 5, max: 12 }], ["rumble", { v: 0.12 }]],
+    cantina_allagata: [["lapping", { v: 0.3 }], ["drips", { v: 0.1, min: 0.4, max: 1.5 }], ["rumble", { v: 0.25 }], ["carillon", { v: 0.03 }]],
+    questura: [["crowd", { v: 0.3, n: 4 }], ["typing", { v: 0.05 }], ["phones", { v: 0.025 }], ["footsteps", { v: 0.06 }]],
+    questura_notte: [["room", { v: 0.12 }], ["hum", { v: 0.02 }], ["clock", { v: 0.05 }], ["rain", { v: 0.05, muffled: 1 }]],
+    studio: [["room", { v: 0.12 }], ["clock", { v: 0.05 }], ["rain", { v: 0.07, muffled: 1 }]],
+    manicomio_notte: [["room", { v: 0.12 }], ["footsteps", { v: 0.07 }], ["whispers", { v: 0.03, min: 4, max: 10 }], ["moans", { v: 0.05 }], ["wind", { v: 0.15, muffled: 1 }]],
+    parlatorio: [["room", { v: 0.12 }], ["hum", { v: 0.015 }], ["clock", { v: 0.05 }], ["footsteps", { v: 0.05 }]],
+    chiesa_allagata: [["lapping", { v: 0.3 }], ["drips", { v: 0.08, min: 0.8, max: 2.5 }], ["organ", { v: 0.012 }], ["rumble", { v: 0.15 }]],
+    soffitta: [["wind", { v: 0.35, muffled: 1 }], ["rain", { v: 0.07, muffled: 1 }], ["creaks", { v: 0.06, min: 3, max: 8 }], ["carillon", { v: 0.035 }], ["whispers", { v: 0.015, min: 8, max: 18 }]],
+    silenzio: [["room", { v: 0.1 }], ["heart", { v: 0.25 }], ["wind", { v: 0.12, muffled: 1 }]],
+  };
+  const WET = { calle_notte: revShortOn, casa_buia: revShortOn, archivio_umido: revLongOn, palazzo_allagato: revLongOn, cantina_allagata: revLongOn, chiesa_allagata: revLongOn, istituto: revShortOn, soffitta: revShortOn, manicomio_notte: revShortOn, parlatorio: revShortOn, cunicoli: revLongOn, cisterna: revLongOn, galleria: revLongOn, abisso: revLongOn, fiume: revLongOn, cantine: revShortOn, guardina: revShortOn, stiva: revShortOn, manicomio: revShortOn, archivio: revShortOn };
+  function revLongOn() { return revLong; } function revShortOn() { return revShort; }
+
+  A.ambientNames = Object.keys(AMB);
+  A.setAmbient = function (name) {
+    if (!A.ready || name === currentName || !name) return;
+    const recipe = AMB[name]; if (!recipe) return;
+    const old = current, t = ctx.currentTime;
+    if (old) {
+      old.forEach(h => { h.g.gain.cancelScheduledValues(t); h.g.gain.setValueAtTime(h.g.gain.value, t); h.g.gain.linearRampToValueAtTime(0, t + 2.5); });
+      if (old.wetIn) { old.wetIn.gain.cancelScheduledValues(t); old.wetIn.gain.setValueAtTime(old.wetIn.gain.value, t); old.wetIn.gain.linearRampToValueAtTime(0, t + 2.5); }
+      setTimeout(() => { old.forEach(kill); try { old.out.disconnect(); if (old.wetIn) old.wetIn.disconnect(); } catch (e) {} }, 3000);
+    }
+    const out = gain(1); out.connect(ambBus);
+    const rev = WET[name] ? WET[name]() : null;
+    let wetIn = null;
+    if (rev) { wetIn = gain(0); wetIn.connect(rev.input); wetIn.gain.linearRampToValueAtTime(0.8, t + 2.5); }
+    current = recipe.map(([type, o]) => {
+      const h = layer(out, () => {}); h.wet = wetIn ? (() => { const s = gain(1); s.connect(wetIn); s.connect(h.g); return s; })() : null;
+      L[type](o)(h, h.g);
+      h.g.gain.setValueAtTime(0, t); h.g.gain.linearRampToValueAtTime(1, t + 2.5);
+      return h;
+    });
+    current.out = out; current.wetIn = wetIn;
+    currentName = name;
+  };
+  function kill(h) { h.dead = true; h.timers.forEach(clearTimeout); h.nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { h.g.disconnect(); } catch (e) {} }
+  A.stopAmbient = function () { if (current) { current.forEach(kill); try { current.out.disconnect(); if (current.wetIn) current.wetIn.disconnect(); } catch (e) {} current = null; currentName = null; } };
+
+  A.setLevels = function (amb, sfx) {
+    A.ambLevel = amb; A.sfxLevel = sfx;
+    if (A.ready) { ambBus.gain.setTargetAtTime(amb * A.duck, ctx.currentTime, 0.1); sfxBus.gain.setTargetAtTime(sfx, ctx.currentTime, 0.1); }
+  };
+  A.setDuck = function (on) {
+    A.duck = on ? 0.45 : 1;
+    if (A.ready) ambBus.gain.setTargetAtTime(A.ambLevel * A.duck, ctx.currentTime, 0.4);
+  };
+
+  // ------------------------------------------------------------------ effetti sonori
+  const SFX = {
+    bussare: (d, t) => { ev.knock(d, t, 0.8); ev.knock(d, t + 0.28, 0.8); ev.knock(d, t + 0.56, 0.9); ev.knock(d, t + 1.3, 1); ev.knock(d, t + 1.5, 1); },
+    porta: (d, t) => { ev.creak(d, t, 0.18); ev.thump(d, t + 1.1, 0.5); },
+    porta_ferro: (d, t) => { ev.creak(d, t, 0.15); ev.bell(d, t + 1, 0.08, 95); ev.thump(d, t + 1, 0.5); },
+    passi_legno: (d, t) => { for (let i = 0; i < 6; i++) { ev.step(d, t + i * 0.5, 0.35, 450); if (i % 2) ev.creak(d, t + i * 0.5, 0.04); } },
+    passi_pietra: (d, t) => { for (let i = 0; i < 6; i++) ev.step(d, t + i * 0.55, 0.3, 900); },
+    passi_ghiaia: (d, t) => { for (let i = 0; i < 6; i++) burst(d, t + i * 0.5, 0.14, { type: "bandpass", f: 2600, q: 0.7, v: 0.25, a: 0.01 }); },
+    passi_veloci: (d, t) => { for (let i = 0; i < 9; i++) ev.step(d, t + i * 0.24, 0.3, 1000); },
+    passi_tacchi: (d, t) => { for (let i = 0; i < 7; i++) ev.heel(d, t + i * 0.42, 0.4); },
+    passi_corridoio: (d, t) => { for (let i = 0; i < 7; i++) ev.step(revSfx.input, t + i * 0.6, 0.5, 800); },
+    metallo: (d, t) => { ev.bell(d, t, 0.08, 410); burst(d, t, 0.05, { type: "highpass", f: 3000, v: 0.3 }); },
+    serratura: (d, t) => { ev.clack(d, t, 0.3); ev.clack(d, t + 0.25, 0.3); ev.thump(d, t + 0.6, 0.4); ev.bell(d, t + 0.6, 0.05, 520); },
+    chiavi: (d, t) => { for (let i = 0; i < 14; i++) tone(d, t + R(0, 0.6), R(3000, 6000), 0.08, { v: 0.04 }); },
+    manette: (d, t) => { ev.clack(d, t, 0.4); ev.bell(d, t, 0.04, 900); ev.clack(d, t + 0.35, 0.4); ev.bell(d, t + 0.35, 0.04, 900); },
+    sbarre: (d, t) => { ev.bell(d, t, 0.12, 140); ev.thump(d, t, 0.3); },
+    stoffa: (d, t) => burst(d, t, 0.6, { type: "bandpass", f: 3500, q: 0.6, v: 0.12, a: 0.2 }),
+    carta: (d, t) => { for (let i = 0; i < 5; i++) burst(d, t + i * R(0.08, 0.15), R(0.05, 0.15), { type: "highpass", f: R(2500, 5000), v: 0.12, a: 0.01 }); },
+    stufa: (d, t) => { for (let i = 0; i < 25; i++) ev.crackle(d, t + R(0, 1.5), 0.2); },
+    fuoco: (d, t) => { for (let i = 0; i < 40; i++) ev.crackle(d, t + R(0, 2), 0.25); burst(d, t, 2, { type: "lowpass", f: 300, kind: "brown", v: 0.15, a: 0.5 }); },
+    pugno_tavolo: (d, t) => { ev.thump(d, t, 0.9); ev.clink(d, t + 0.02, 0.12); ev.clink(d, t + 0.08, 0.09); ev.clink(d, t + 0.15, 0.06); },
+    sedia: (d, t) => { ev.creak(d, t, 0.2); ev.thump(d, t + 0.6, 0.2); },
+    tazzina: (d, t) => { ev.clink(d, t, 0.15); ev.clink(d, t + 0.12, 0.08); },
+    bicchiere: (d, t) => { ev.clink(d, t, 0.14); burst(d, t + 0.2, 0.7, { type: "bandpass", f: 1400, q: 2, v: 0.08, a: 0.1 }); },
+    campanello_porta: (d, t) => { for (let i = 0; i < 4; i++) ev.bell(d, t + i * 0.12, 0.05, R(1200, 1500)); },
+    campane: (d, t) => { for (let i = 0; i < 6; i++) ev.bell(d, t + i * 1.1, 0.14, [220, 185, 165][i % 3]); },
+    orologio: (d, t) => { for (let i = 0; i < 4; i++) ev.tick(d, t + i, 0.15, i % 2); },
+    applausi: (d, t) => { for (let i = 0; i < 120; i++) burst(d, t + R(0, 3) * (1 - Math.random() * 0.3), 0.02, { type: "bandpass", f: R(1000, 2500), q: 1.5, v: R(0.05, 0.15) }); },
+    valzer: (d, t) => { [293.66, 369.99, 440, 587.33].forEach((f, i) => tone(d, t + i * 0.12, f, 1.2, { type: "triangle", v: 0.08 })); },
+    colpo: (d, t) => { ev.thump(d, t, 1); burst(d, t, 0.1, { type: "lowpass", f: 900, v: 0.6 }); tone(d, t + 0.1, 3400, 2.5, { v: 0.03, a: 0.2 }); },
+    caduta: (d, t) => { burst(d, t, 0.9, { type: "bandpass", f: 400, fTo: 1600, v: 0.25, a: 0.5 }); ev.thump(d, t + 1.3, 1); burst(d, t + 1.3, 0.3, { type: "lowpass", f: 600, v: 0.4 }); },
+    crollo: (d, t) => { burst(d, t, 3.5, { type: "lowpass", f: 300, kind: "brown", v: 0.9, a: 0.3 }); for (let i = 0; i < 40; i++) ev.knock(d, t + R(0, 3), R(0.1, 0.5)); },
+    corda_spezzata: (d, t) => { tone(d, t, 330, 0.5, { type: "sawtooth", to: 90, v: 0.2, filter: ["lowpass", 1500] }); burst(d, t + 0.2, 1.5, { type: "bandpass", f: 600, fTo: 1800, v: 0.25, a: 0.8 }); },
+    tuffo: (d, t) => ev.splash(d, t, 0.6),
+    acqua_gocce: (d, t) => { for (let i = 0; i < 5; i++) ev.drip(revSfx.input, t + i * R(0.3, 0.8), 0.2); },
+    acqua_fontana: (d, t) => { burst(d, t, 2.5, { type: "bandpass", f: 2600, q: 0.8, v: 0.1, a: 0.5 }); },
+    acqua_fiume: (d, t) => { burst(d, t, 3, { type: "lowpass", f: 1200, kind: "pink", v: 0.35, a: 1.2 }); },
+    onde: (d, t) => { burst(d, t, 2.5, { type: "lowpass", f: 900, kind: "brown", v: 0.5, a: 1.2 }); burst(d, t + 1.2, 1.5, { type: "highpass", f: 2500, v: 0.06, a: 0.2 }); },
+    gabbiani: (d, t) => { ev.gull(d, t, 0.08); ev.gull(d, t + 1.4, 0.06); },
+    uccelli: (d, t) => { for (let i = 0; i < 6; i++) ev.chirp(d, t + i * R(0.3, 0.7), 0.04); },
+    vento: (d, t) => burst(d, t, 3, { kind: "pink", type: "bandpass", f: 500, fTo: 800, q: 0.7, v: 0.5, a: 1.2 }),
+    vento_forte: (d, t) => { burst(d, t, 3.5, { kind: "pink", type: "bandpass", f: 400, fTo: 1000, q: 0.6, v: 0.9, a: 1 }); tone(d, t + 0.5, 1100, 2.5, { to: 1500, v: 0.015, a: 0.8 }); },
+    vento_galleria: (d, t) => burst(d, t, 3, { kind: "pink", type: "bandpass", f: 250, fTo: 450, q: 2, v: 0.6, a: 1.2 }),
+    vento_voce: (d, t) => { ev.moan(d, t, 0.5); ev.moan(d, t + 1.5, 0.4); },
+    remi: (d, t) => { for (let i = 0; i < 4; i++) ev.splash(d, t + i * 1.1, 0.15); },
+    sparo: (d, t) => { burst(revSfx.input, t, 0.08, { type: "lowpass", f: 5000, v: 1, a: 0.001 }); burst(d, t, 0.06, { type: "lowpass", f: 4000, v: 1, a: 0.001 }); tone(d, t, 90, 0.4, { to: 40, v: 0.9 }); },
+    colluttazione: (d, t) => { for (let i = 0; i < 7; i++) { ev.thump(d, t + i * R(0.25, 0.45), R(0.4, 0.8)); if (Math.random() < 0.5) burst(d, t + i * 0.35 + 0.05, 0.15, { kind: "pink", type: "bandpass", f: 350, q: 5, v: 0.25, a: 0.02 }); } },
+    fischietto: (d, t) => { tone(d, t, 2800, 1.3, { vib: 32, vibDepth: 180, v: 0.08, a: 0.02 }); tone(d, t + 1.6, 2800, 0.8, { vib: 32, vibDepth: 180, v: 0.07, a: 0.02 }); },
+    treno: (d, t) => { tone(d, t, 587, 1.6, { type: "sawtooth", v: 0.05, a: 0.1, filter: ["lowpass", 1800] }); tone(d, t, 740, 1.6, { type: "sawtooth", v: 0.04, a: 0.1, filter: ["lowpass", 1800] }); for (let i = 0; i < 6; i++) ev.chuff(d, t + 1.8 + i * 0.7, 0.25); },
+    treno_lontano: (d, t) => { tone(d, t, 587, 2, { type: "sawtooth", v: 0.015, a: 0.3, filter: ["lowpass", 900] }); tone(d, t, 740, 2, { type: "sawtooth", v: 0.012, a: 0.3, filter: ["lowpass", 900] }); },
+    vetri_rotti: (d, t) => { burst(d, t, 0.4, { type: "highpass", f: 3000, v: 0.4, a: 0.002 }); for (let i = 0; i < 30; i++) tone(d, t + R(0, 0.7), R(2500, 7000), R(0.05, 0.25), { v: 0.04 }); },
+    cuore_lento: (d, t) => { [0, 1.1, 2.4, 4].forEach((o, i) => { ev.thump(d, t + o, 0.6 - i * 0.12); ev.thump(d, t + o + 0.3, 0.35 - i * 0.07); }); },
+    pietra: (d, t) => burst(d, t, 1.2, { kind: "brown", type: "lowpass", f: 500, v: 0.6, a: 0.3 }),
+    macchina_caffe: (d, t) => { ev.hiss(d, t, 0.15, 2); for (let i = 0; i < 10; i++) { const f = R(200, 500); tone(d, t + 0.5 + R(0, 1.5), f, 0.05, { to: f * 1.6, v: 0.05 }); } },
+    fiammifero: (d, t) => { burst(d, t, 0.15, { type: "highpass", f: 2000, v: 0.3, fTo: 6000 }); burst(d, t + 0.1, 0.6, { type: "bandpass", f: 800, v: 0.06, a: 0.05 }); },
+
+    telefono: (d, t) => { for (let r = 0; r < 2; r++) { const t0 = t + r * 2.6; for (let i = 0; i < 40; i++) { const tt = t0 + i * .025; tone(d, tt, i % 2 ? 1250 : 1000, .03, { v: .05, a: .001 }); } } },
+    telefono_ufficio: (d, t) => { for (let i = 0; i < 3; i++) { tone(d, t + i * .9, 880, .25, { v: .04 }); tone(d, t + i * .9 + .3, 740, .25, { v: .04 }); } },
+    interruttore: (d, t) => { ev.clack(d, t, .35); },
+    vetro: (d, t) => { ev.clink(d, t, .12); ev.clink(d, t + .2, .06); },
+    passi_acqua: (d, t) => { for (let i = 0; i < 6; i++) burst(d, t + i * .6, .3, { kind: "brown", type: "lowpass", f: 900, v: .35, a: .04 }); },
+    pagina: (d, t) => SFX.carta(d, t),
+    legno: (d, t) => { ev.knock(d, t, .4); ev.creak(d, t + .1, .08); },
+    macchina_scrivere: (d, t) => { for (let i = 0; i < 18; i++) ev.clack(d, t + i * R(.08, .16), .2); ev.bell(d, t + 2.6, .04, 1800); },
+    pioggia_vetri: (d, t) => { burst(d, t, 3, { type: "bandpass", f: 4000, q: .5, v: .15, a: .6 }); for (let i = 0; i < 60; i++) ev.crackle(d, t + R(0, 3), .12); },
+    nastro_play: (d, t) => { ev.clack(d, t, .45); ev.thump(d, t + .05, .2); burst(d, t + .2, 2.5, { type: "highpass", f: 4000, v: .04, a: .1 }); },
+    nastro_stop: (d, t) => { ev.clack(d, t, .5); ev.thump(d, t + .04, .3); },
+    sirena: (d, t) => {
+      const o = ctx.createOscillator(); o.type = "sawtooth"; const f = filt("lowpass", 1400), g = gain(0);
+      o.frequency.setValueAtTime(300, t); o.frequency.linearRampToValueAtTime(620, t + 2.5); o.frequency.linearRampToValueAtTime(560, t + 4); o.frequency.linearRampToValueAtTime(620, t + 5.5); o.frequency.linearRampToValueAtTime(250, t + 8.5);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.07, t + 1.5); g.gain.linearRampToValueAtTime(.07, t + 6.5); g.gain.linearRampToValueAtTime(0, t + 8.5);
+      chain(o, f, g, d); g.connect(revSfx.input); o.start(t); o.stop(t + 8.6);
+    },
+    carillon: (d, t) => ninna(d, t, .06, .42, true),
+    motoscafo: (d, t) => { for (let i = 0; i < 30; i++) burst(d, t + i * .09, .05, { kind: "brown", type: "lowpass", f: 400, v: .25 * Math.min(1, i / 6) * Math.min(1, (30 - i) / 8) }); },
+    motore_barca: (d, t) => { for (let i = 0; i < 18; i++) burst(d, t + i * .18, .07, { kind: "brown", type: "lowpass", f: 300, v: .3 * Math.min(1, i / 4) * Math.min(1, (18 - i) / 5) }); },
+    campanello: (d, t) => { ev.bell(d, t, .07, 660); ev.bell(d, t + .45, .07, 523); },
+    vaporetto: (d, t) => { SFX.motore_barca(d, t); tone(d, t + 1, 196, 1.4, { type: "sawtooth", v: .04, a: .1, filter: ["lowpass", 700] }); },
+    vetro_rotto: (d, t) => SFX.vetri_rotti(d, t),
+    coltello: (d, t) => { burst(d, t, .25, { type: "bandpass", f: 3000, fTo: 6000, v: .2, a: .08 }); tone(d, t + .2, 4100, .5, { v: .03 }); },
+    respiro: (d, t) => { for (let i = 0; i < 3; i++) { burst(d, t + i * 2, .9, { kind: "pink", type: "bandpass", f: 1200, q: 1, v: .12, a: .4 }); burst(d, t + i * 2 + 1, .8, { kind: "pink", type: "bandpass", f: 900, q: 1, v: .09, a: .2 }); } },
+    pistola_carica: (d, t) => { ev.clack(d, t, .4); ev.clack(d, t + .18, .5); ev.bell(d, t + .18, .03, 1500); },
+    // suoni dell'interfaccia
+    _oggetto: (d, t) => { tone(d, t, 880, 0.4, { type: "triangle", v: 0.08 }); tone(d, t + 0.1, 1318.5, 0.6, { type: "triangle", v: 0.07 }); },
+    _indizio: (d, t) => { SFX.carta(d, t); tone(d, t + 0.15, 659.25, 0.5, { type: "triangle", v: 0.06 }); tone(d, t + 0.3, 987.77, 0.8, { type: "triangle", v: 0.06 }); },
+    _ferita: (d, t) => { ev.thump(d, t, 0.8); tone(d, t, 140, 0.6, { to: 70, v: 0.15, type: "triangle" }); },
+    _cura: (d, t) => { [523.25, 659.25, 783.99].forEach((f, i) => tone(d, t + i * 0.09, f, 0.7, { type: "sine", v: 0.06 })); },
+    _fine: (d, t) => { [146.83, 220, 293.66, 349.23].forEach((f, i) => tone(d, t + i * 0.25, f, 3, { type: "triangle", v: 0.06, a: 0.3 })); },
+  };
+  A.sfxNames = Object.keys(SFX).filter(k => k[0] !== "_");
+  A.play = function (name, delay) {
+    if (!A.ready || !SFX[name]) return;
+    const d = gain(1); d.connect(sfxBus); d.connect(revSfx.input);
+    SFX[name](d, ctx.currentTime + 0.05 + (delay || 0));
+  };
+
+  root.Suoni = A;
+})(this);
+</script>
+<script>// Narrazione: sintesi vocale del dispositivo (una voce per personaggio)
+// oppure file audio registrati (audio/<paragrafo>_<n>.mp3) se presenti.
+(function (root) {
+  "use strict";
+  const V = { enabled: true, rate: 1, recorded: null, voices: [], roles: {}, onchange: null };
+  const synth = root.speechSynthesis;
+  V.supported = !!synth;
+  const FEM = /alice|elsa|federica|paola|isabella|bianca|carla|emma|giulia|chiara|francesca|silvia|anna|laura|sara|martina|valentina|female|donna|women|woman|femmin/i;
+  const MAS = /luca|cosimo|diego|giorgio|riccardo|benigno|gianni|marco|giuseppe|roberto|paolo|male|uomo|man\b|maschil|calogero|rinaldo|lorenzo/i;
+
+  const PRON = [
+    [/Radić/g, "Ràdich"], [/Zlatić/g, "Zlàtich"], [/Bencich/g, "Bencic"], [/Südbahn/g, "Sudbàn"],
+    [/capo in b\b/g, "capo in bi"], [/«|»/g, ""], [/\bKamy\b/g, "Cami"], [/Kraus/g, "Craus"],
+    [/von Struck/g, "fon Strùc"], [/Ehrenfels/g, "Èrenfels"], [/Hofmann/g, "Òfman"], [/Stocovaz/g, "Stocovaz"],
+    [/Boscovich/g, "Boscòvich"], [/\bFerraresi\b/g, "Ferrarési"], [/\bZanon\b/g, "Zanòn"], [/\bGritti\b/g, "Gritti"], [/\bPavan\b/g, "Pavàn"], [/\bAgnese\b/g, "Agnèse"], [/\bBepi\b/g, "Bèpi"], [/\bInes\b/g, "Ìnes"], [/\bLivia\b/g, "Lìvia"], [/\bSony\b/g, "Sòni"], [/\bREC\b/g, "rec"], [/\bPLAY\b/g, "plèi"], [/n\. (\d+)/g, "numero $1"], [/Ilse/g, "Ilse"], [/Remington/g, "Rèmington"], [/\bmulo\b/g, "mulo"],
+  ];
+  V.setStory = function (story) {
+    const p = story.voices[story.meta.protagonista];
+    V.protagonistaGenere = p ? p.genere : "maschile";
+    V.autoRoles();
+  };
+  V.clean = t => PRON.reduce((s, [a, b]) => s.replace(a, b), t);
+
+  V.loadVoices = function () {
+    if (!synth) return;
+    const all = synth.getVoices();
+    V.voices = all.filter(v => /^it/i.test(v.lang));
+    if (!V.voices.length) V.voices = all.filter(v => /^en/i.test(v.lang)).slice(0, 4);
+    V.autoRoles();
+    if (V.onchange) V.onchange();
+  };
+  V.gender = v => FEM.test(v.name) ? "f" : MAS.test(v.name) ? "m" : "?";
+  V.autoRoles = function () {
+    const vs = V.voices, keep = V.roles;
+    const byName = n => vs.find(v => v.name === n);
+    const males = vs.filter(v => V.gender(v) === "m"), fems = vs.filter(v => V.gender(v) === "f");
+    const any = vs[0];
+    const pickM = i => males[i] || males[0] || vs.find(v => V.gender(v) === "?") || any;
+    const pickF = i => fems[i] || fems[0] || vs.find(v => V.gender(v) === "?") || any;
+    const nome = k => keep[k] && keep[k].name || keep[k];
+    const protF = V.protagonistaGenere === "femminile";
+    V.roles = {
+      narratore: byName(nome("narratore")) || pickM(0),
+      protagonista: byName(nome("protagonista")) || (protF ? pickF(1) : pickM(1)),
+      donne: byName(nome("donne")) || pickF(0),
+      uomini: byName(nome("uomini")) || pickM(2) || pickM(1),
+    };
+  };
+  if (synth) { V.loadVoices(); synth.onvoiceschanged = V.loadVoices; }
+
+  function roleFor(who, story) {
+    if (!who || who === "NARRATORE") return "narratore";
+    if (who === story.meta.protagonista) return "protagonista";
+    const v = story.voices[who];
+    return v && v.genere === "femminile" ? "donne" : "uomini";
+  }
+  function chunks(text) {
+    const parts = text.match(/[^.!?…]+[.!?…]*["»]?\s*/g) || [text], out = [];
+    let cur = "";
+    parts.forEach(p => { if ((cur + p).length > 190 && cur) { out.push(cur); cur = p; } else cur += p; });
+    if (cur.trim()) out.push(cur);
+    return out;
+  }
+
+  let queue = [], playing = false, token = 0, audioEl = null;
+  V.stop = function () {
+    token++; queue = []; playing = false;
+    if (synth) synth.cancel();
+    if (audioEl) { audioEl.pause(); audioEl = null; }
+    if (root.Suoni) root.Suoni.setDuck(false);
+  };
+  // items: [{who, text, key, onstart}]
+  V.speak = function (items, story, ondone) {
+    V.stop();
+    if (!V.enabled) { if (ondone) ondone(); return; }
+    const my = ++token; queue = items.slice(); playing = true;
+    if (root.Suoni) root.Suoni.setDuck(true);
+    const next = () => {
+      if (my !== token) return;
+      const it = queue.shift();
+      if (!it) { playing = false; if (root.Suoni) root.Suoni.setDuck(false); if (ondone) ondone(); return; }
+      if (it.onstart) it.onstart();
+      if (V.recorded && it.key) playFile(it, my, next, () => speakTTS(it, story, my, next));
+      else speakTTS(it, story, my, next);
+    };
+    next();
+  };
+  function playFile(it, my, next, fallback) {
+    const a = new Audio(V.recorded + it.key + ".mp3");
+    audioEl = a; a.playbackRate = V.rate;
+    let done = false;
+    const fin = ok => { if (done || my !== token) return; done = true; ok ? setTimeout(next, 250) : fallback(); };
+    a.onended = () => fin(true); a.onerror = () => fin(false);
+    a.play().catch(() => fin(false));
+  }
+  function speakTTS(it, story, my, next) {
+    if (!synth) { setTimeout(next, 50); return; }
+    const role = roleFor(it.who, story), voice = V.roles[role];
+    const spec = (it.who && story.voices[it.who]) || story.voices.NARRATORE || { pitch: 1, rate: 1 };
+    // se più ruoli condividono la stessa voce, la differenza la fanno altezza e velocità
+    const pitch = Math.max(0.1, Math.min(2, spec.pitch)), rate = Math.max(0.5, Math.min(1.6, spec.rate * V.rate));
+    const parts = chunks(V.clean(it.text));
+    const sayPart = () => {
+      if (my !== token) return;
+      const p = parts.shift();
+      if (p == null) { setTimeout(next, it.who ? 260 : 380); return; }
+      const u = new SpeechSynthesisUtterance(p);
+      if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = "it-IT";
+      u.pitch = pitch; u.rate = rate;
+      let ended = false;
+      const end = () => { if (ended) return; ended = true; clearTimeout(watch); sayPart(); };
+      u.onend = end; u.onerror = end;
+      // alcuni browser perdono l'evento di fine: rete di sicurezza in base alla lunghezza
+      const watch = setTimeout(end, 4000 + p.length * 110 / rate);
+      synth.speak(u);
+    };
+    sayPart();
+  }
+  V.isPlaying = () => playing;
+
+  // Controlla se esistono voci registrate accanto alla pagina
+  V.detectRecorded = function (firstKey, cb) {
+    const a = new Audio(); let settled = false;
+    const done = ok => { if (settled) return; settled = true; V.recorded = ok ? "audio/" : null; cb && cb(ok); };
+    a.preload = "metadata";
+    a.onloadedmetadata = () => done(true); a.onerror = () => done(false);
+    setTimeout(() => done(false), 2500);
+    a.src = "audio/" + firstKey + ".mp3";
+  };
+
+  root.Voci = V;
+})(this);
+</script>
+<script>
+(function () {
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const S = LibroGame.parseStory($("#storia").textContent);
+  const G = new LibroGame.Game(S);
+  const KEY = S.meta.chiave || ("lg-" + (S.meta.titolo || "storia").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+  const store = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })();
+  store.finali = store.finali || [];
+  store.storia = store.storia || [];
+  store.imp = Object.assign({ voce: true, scelte: true, velocita: 1, ambienti: 0.7, effetti: 0.8, ruoli: {} }, store.imp || {});
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+  const esc = t => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const num = {}; S.order.forEach((l, i) => num[l] = i + 1);
+
+  Voci.enabled = store.imp.voce; Voci.rate = store.imp.velocita;
+  Voci.roles = Object.assign({}, store.imp.ruoli); Voci.setStory(S);
+
+  let res = null;
+
+  // ------------------------------------------------------------ cielo animato del titolo
+  (function cielo() {
+    const c = $("#cielo"), x = c.getContext("2d");
+    const ridotto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let W = 0, H = 0, dpr = 1, raggi = [], t0 = performance.now();
+    const tetti = [];
+    function size() {
+      dpr = Math.min(2, devicePixelRatio || 1); W = c.clientWidth; H = c.clientHeight;
+      c.width = W * dpr; c.height = H * dpr; x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      tetti.length = 0; let px = 0; const base = H * 0.58;
+      while (px < W + 40) { const w = 14 + Math.random() * 38, h = 10 + Math.random() * 40; tetti.push([px, base - h, w]); px += w; }
+      raggi = Array.from({ length: Math.round(W / 9) }, () => nuovo(true));
+    }
+    function nuovo(init) { return { x: init ? Math.random() * W : W + Math.random() * 80, y: Math.random() * H * 0.6, l: 30 + Math.random() * 120, v: 4 + Math.random() * 9, a: .05 + Math.random() * .18 }; }
+    function drawBora(t) {
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0b141b"); g.addColorStop(.62, "#14222c"); g.addColorStop(1, "#0e1820");
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      // Carso
+      x.fillStyle = "#101c24"; x.beginPath(); x.moveTo(0, H * .5);
+      for (let i = 0; i <= 12; i++) x.lineTo(W * i / 12, H * (.42 + .06 * Math.sin(i * 1.7) + .03 * Math.cos(i * 3.1)));
+      x.lineTo(W, H); x.lineTo(0, H); x.fill();
+      // città: tetti, campanile di San Giusto, finestre a gas
+      x.fillStyle = "#0a1218";
+      tetti.forEach(([px, py, w]) => x.fillRect(px, py, w + 1, H));
+      const cx = W * .68, cb = H * .58; x.fillRect(cx, cb - 95, 22, 95); x.beginPath(); x.moveTo(cx - 3, cb - 95); x.lineTo(cx + 11, cb - 118); x.lineTo(cx + 25, cb - 95); x.fill();
+      x.fillStyle = "rgba(230,166,75,.75)";
+      tetti.forEach(([px, py, w], i) => { if (i % 3 === 0) x.fillRect(px + w * .4, py + 8, 2, 3); });
+      // Lanterna sul molo e il suo fascio
+      const lx = W * .14, ly = H * .6;
+      x.fillStyle = "#0a1218"; x.fillRect(lx - 5, ly - 46, 10, 46); x.fillRect(lx - 9, ly - 50, 18, 6);
+      const ang = ridotto ? -.4 : Math.sin(t * .5) * 1.1;
+      const bg = x.createRadialGradient(lx, ly - 48, 0, lx, ly - 48, W * .8);
+      bg.addColorStop(0, "rgba(240,190,110,.32)"); bg.addColorStop(1, "rgba(240,190,110,0)");
+      x.save(); x.translate(lx, ly - 48); x.rotate(ang); x.fillStyle = bg;
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(W * .9, -40); x.lineTo(W * .9, 40); x.closePath(); x.fill(); x.restore();
+      x.fillStyle = "#f3c77d"; x.beginPath(); x.arc(lx, ly - 48, 3.2, 0, 7); x.fill();
+      // mare
+      x.fillStyle = "#0c161d"; x.fillRect(0, ly, W, H - ly);
+      x.strokeStyle = "rgba(127,164,166,.12)"; x.lineWidth = 1;
+      for (let i = 0; i < 9; i++) { const yy = ly + 10 + i * 14; x.beginPath(); for (let k = 0; k <= W; k += 16) x.lineTo(k, yy + Math.sin(k * .03 + t * (1 + i * .1) + i) * 2); x.stroke(); }
+      // bora: raffiche da est verso il mare
+      x.lineCap = "round";
+      raggi.forEach(r => {
+        x.strokeStyle = `rgba(236,226,204,${r.a})`; x.lineWidth = 1;
+        x.beginPath(); x.moveTo(r.x, r.y); x.lineTo(r.x + r.l, r.y - r.l * .08); x.stroke();
+        if (!ridotto) { r.x -= r.v * (1 + .6 * Math.sin(t * .7)); r.y += r.v * .06; if (r.x + r.l < 0) Object.assign(r, nuovo()); }
+      });
+    }
+    // --- Venezia nella nebbia: skyline, riflessi, bricole, una gondola vuota
+    let sky = null, finestre = [], nebbie = [];
+    function preparaLaguna() {
+      const hz = Math.round(H * .56);
+      sky = document.createElement("canvas"); sky.width = W * dpr; sky.height = hz * dpr;
+      const s = sky.getContext("2d"); s.setTransform(dpr, 0, 0, dpr, 0, 0); s.fillStyle = "#070c0b";
+      finestre = [];
+      let px = -10;
+      while (px < W + 20) {
+        const w = 26 + Math.random() * 46, h = 34 + Math.random() * 52;
+        s.fillRect(px, hz - h, w + 1, h);
+        for (let fy = hz - h + 10; fy < hz - 12; fy += 15) for (let fx = px + 5; fx < px + w - 6; fx += 10)
+          if (Math.random() < .1) finestre.push({ x: fx, y: fy, r: Math.random() < .06, f: Math.random() * 6 });
+        px += w;
+      }
+      const cx = W * .63; s.fillRect(cx, hz - 170, 16, 170);
+      s.beginPath(); s.moveTo(cx - 2, hz - 170); s.lineTo(cx + 8, hz - 200); s.lineTo(cx + 18, hz - 170); s.fill();
+      const dx = W * .26, dy = hz - 78; s.beginPath(); s.arc(dx, dy, 30, Math.PI, 0); s.fill(); s.fillRect(dx - 34, dy, 68, 80);
+      s.beginPath(); s.arc(dx + 44, dy + 18, 14, Math.PI, 0); s.fill(); s.fillRect(dx - 3, dy - 44, 6, 16);
+      nebbie = Array.from({ length: 7 }, (_, i) => ({ x: Math.random() * W, y: H * (.35 + i * .07), r: W * (.4 + Math.random() * .4), v: .08 + Math.random() * .22, a: .05 + Math.random() * .07 }));
+    }
+    function drawLaguna(t) {
+      if (!sky) preparaLaguna();
+      const hz = Math.round(H * .56);
+      const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0a0f0f"); g.addColorStop(.55, "#18211f"); g.addColorStop(.56, "#0d1413"); g.addColorStop(1, "#080d0c");
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const lun = x.createRadialGradient(W * .8, H * .16, 0, W * .8, H * .16, W * .35);
+      lun.addColorStop(0, "rgba(220,226,220,.16)"); lun.addColorStop(1, "rgba(220,226,220,0)"); x.fillStyle = lun; x.fillRect(0, 0, W, hz);
+      x.drawImage(sky, 0, 0, W, hz);
+      finestre.forEach(f => {
+        const k = .45 + .35 * Math.sin(t * 1.3 + f.f) + (Math.random() < .01 ? -.4 : 0);
+        x.fillStyle = f.r ? `rgba(196,71,59,${(.55 + .35 * Math.sin(t * .4 + f.f)).toFixed(2)})` : `rgba(226,196,130,${Math.max(.1, k).toFixed(2)})`;
+        x.fillRect(f.x, f.y, 3, 5);
+      });
+      // riflesso spezzato dall'acqua
+      x.save(); x.globalAlpha = .28;
+      for (let yy = 0; yy < hz; yy += 3) {
+        const off = Math.sin(yy * .09 + t * 1.4) * (2 + yy * .02);
+        x.drawImage(sky, 0, (hz - yy - 3) * dpr, W * dpr, 3 * dpr, off, hz + yy * .8, W, 3);
+      }
+      x.restore();
+      // bricole
+      x.fillStyle = "#050908";
+      [[.08, 3], [.85, 2], [.93, 3]].forEach(([bx, n]) => { for (let i = 0; i < n; i++) { const X = W * bx + i * 7; x.save(); x.translate(X, H * .9); x.rotate((i - 1) * .05); x.fillRect(-3, -H * .3, 6, H * .3); x.restore(); } });
+      // gondola vuota alla deriva
+      const gx = W - ((t * 9) % (W + 260)), gy = H * .66;
+      x.beginPath(); x.moveTo(gx, gy); x.quadraticCurveTo(gx + 90, gy + 14, gx + 190, gy - 6); x.lineTo(gx + 196, gy - 22); x.lineTo(gx + 186, gy - 4);
+      x.quadraticCurveTo(gx + 90, gy + 6, gx + 6, gy - 8); x.lineTo(gx - 6, gy - 26); x.closePath(); x.fill();
+      x.fillRect(gx - 9, gy - 30, 4, 8); x.fillRect(gx - 12, gy - 26, 10, 2); x.fillRect(gx - 12, gy - 22, 10, 2);
+      // banchi di nebbia
+      nebbie.forEach(n => {
+        const nx = ((n.x + t * n.v * 20) % (W + n.r * 2)) - n.r;
+        const ng = x.createRadialGradient(nx, n.y, 0, nx, n.y, n.r);
+        ng.addColorStop(0, `rgba(190,200,194,${n.a})`); ng.addColorStop(1, "rgba(190,200,194,0)");
+        x.fillStyle = ng; x.fillRect(nx - n.r, n.y - n.r, n.r * 2, n.r * 2);
+      });
+    }
+    function draw(now) {
+      const t = (now - t0) / 1000;
+      if (S.meta.scena === "laguna") drawLaguna(t); else drawBora(t);
+      if (!ridotto && !$("#titolo").hidden) requestAnimationFrame(draw);
+    }
+    size(); addEventListener("resize", () => { size(); sky = null; if (ridotto) draw(performance.now()); });
+    requestAnimationFrame(draw);
+    cielo.riavvia = () => requestAnimationFrame(draw);
+    window.__cielo = cielo;
+  })();
+
+  // ------------------------------------------------------------ rendering
+  function salute() {
+    const max = S.max.salute || 3, v = Math.max(0, G.st.vars.salute || 0);
+    $("#salute").innerHTML = Array.from({ length: max }, (_, i) => `<i class="${i < v ? "" : "spenta"}"></i>`).join("");
+    $("#salute").setAttribute("aria-label", `Salute: ${v} su ${max}`);
+  }
+  function nomeDi(who) { return (S.voices[who] && S.voices[who].nome) || who; }
+  function coloreDi(who) { return (S.voices[who] && S.voices[who].colore) || "var(--carta-2)"; }
+
+  function mostra(r) {
+    res = r;
+    const p = r.para, v = r.view, f = $("#foglio");
+    salute();
+    if (p.ambiente) Suoni.setAmbient(p.ambiente);
+    p.suoni.forEach((s, i) => Suoni.play(s, i * 0.6));
+    eventi(r.events || []);
+    let h = `<div class="par">§ ${num[p.label]}</div><div class="racconto entra" id="racconto">`;
+    p.segs.forEach((s, i) => {
+      if (s.who) h += `<p class="battuta" data-i="${i}" style="--colore:${coloreDi(s.who)}"><span class="chi">${esc(nomeDi(s.who))}</span>«${esc(s.text)}»</p>`;
+      else h += `<p data-i="${i}">${esc(s.text)}</p>`;
+    });
+    h += `</div>`;
+    if (v.ending) h += fineHtml(v.ending);
+    else {
+      h += `<div class="voce-ctl" id="voce-ctl"></div><div class="scelte" id="scelte">`;
+      v.choices.forEach((c, i) => {
+        h += c.auto ? `<button class="scelta continua" type="button" data-c="${i}">Continua</button>`
+          : `<button class="scelta" type="button" data-c="${i}"><span class="n">${i + 1}</span><span>${esc(c.text)}</span></button>`;
+      });
+      h += `</div>`;
+    }
+    f.innerHTML = h;
+    window.scrollTo(0, 0);
+    f.querySelectorAll("[data-c]").forEach(b => b.addEventListener("click", () => scegli(v.choices[+b.dataset.c])));
+    if (v.ending) { registraFine(v.ending); legatoFine(); }
+    leggi();
+    store.salvataggio = G.save(); persist(); snapshot();
+  }
+
+  function leggi() {
+    const p = res.para, v = res.view;
+    const items = p.segs.map((s, i) => ({ who: s.who, text: s.text, key: p.label + "_" + i, onstart: () => evidenzia(i) }));
+    if (!v.ending && store.imp.scelte && v.choices.length && !v.choices[0].auto) {
+      const ord = ["Uno", "Due", "Tre", "Quattro", "Cinque", "Sei"];
+      items.push({ who: null, text: "Che cosa fai? " + v.choices.map((c, i) => `${ord[i] || i + 1}: ${c.text}.`).join(" "), key: null, onstart: () => evidenzia(-1) });
+    }
+    if (v.ending) items.push({ who: null, text: "Fine. " + v.ending.titolo + ".", key: null });
+    controlli(true);
+    Voci.speak(items, S, () => { evidenzia(-2); controlli(false); });
+    if (!Voci.enabled) { evidenzia(-2); controlli(false); }
+  }
+  function evidenzia(i) {
+    document.querySelectorAll("#racconto p").forEach(el => {
+      const k = +el.dataset.i;
+      el.classList.toggle("ora", k === i);
+      el.classList.toggle("letto", i >= 0 && k < i);
+    });
+    if (i === -2) document.querySelectorAll("#racconto p").forEach(el => el.classList.remove("letto", "ora"));
+  }
+  function controlli(parla) {
+    const c = $("#voce-ctl"); if (!c) return;
+    if (!Voci.supported && !Voci.recorded) { c.innerHTML = `<span>Questo browser non ha la sintesi vocale: puoi leggere il testo.</span>`; return; }
+    if (!Voci.enabled) { c.innerHTML = ""; return; }
+    c.innerHTML = parla
+      ? `<button type="button" id="v-stop"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="2" width="8" height="8" fill="currentColor"/></svg>Ferma la voce</button>`
+      : `<button type="button" id="v-play"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg>Riascolta</button>`;
+    const b = c.querySelector("button");
+    b.addEventListener("click", () => { if (parla) { Voci.stop(); evidenzia(-2); controlli(false); } else leggi(); });
+  }
+
+  function scegli(c) {
+    Voci.stop();
+    store.storia.push(G.save()); if (store.storia.length > 40) store.storia.shift();
+    mostra(G.choose(c));
+  }
+
+  const TIPI = Object.assign({ vero: "Finale vero", falso: "Finale falso", romance: "Finale romantico", morte: "Morte", segreto: "Finale segreto" }, Object.fromEntries(Object.entries(S.tipi).map(([k, v]) => [k, v.etichetta])));
+  const coloreTipo = t => S.tipi[t] && S.tipi[t].colore ? ` style="color:${S.tipi[t].colore}"` : "";
+  const breve = t => (TIPI[t] || t).replace(/^Finale (del(la|lo|l')? ?|dei |degli )?/i, "").replace(/^./, m => m.toUpperCase());
+  function contaFinali() {
+    const per = {}; Object.entries(S.endings).forEach(([id, e]) => { per[e.tipo] = per[e.tipo] || [0, 0]; per[e.tipo][1]++; if (store.finali.includes(id)) per[e.tipo][0]++; });
+    return Object.entries(per).map(([t, [a, b]]) => `<span>${breve(t)} ${a}/${b}</span>`).join("");
+  }
+  function fineHtml(e) {
+    return `<div class="fine"><div class="timbro">Fine</div><h2>${esc(e.titolo)}</h2><span class="tipo ${e.tipo}"${coloreTipo(e.tipo)}>${TIPI[e.tipo] || ""}</span>
+      <div class="conteggio" id="conteggio"></div>
+      <div class="azioni">${e.tipo !== "vero" && e.tipo !== "segreto" ? `<button class="btn primo" type="button" id="f-indietro">Torna all'ultima scelta</button>` : ""}
+      <button class="btn${e.tipo !== "vero" && e.tipo !== "segreto" ? "" : " primo"}" type="button" id="f-nuova">Ricomincia da capo</button>
+      <button class="btn" type="button" id="f-finali">Finali scoperti</button></div></div>`;
+  }
+  function registraFine(e) {
+    const nuovo = !store.finali.includes(e.id);
+    if (nuovo) store.finali.push(e.id); persist();
+    // dentro Chiacchiere: avvisa l'app (senza il titolo del finale, per non fare spoiler)
+    try {
+      if (window.parent !== window && new URLSearchParams(location.search).has("chiacchiere"))
+        window.parent.postMessage({ from: "storia", type: "finale", nuovo: nuovo, trovati: store.finali.length, totali: Object.keys(S.endings).length }, location.origin);
+    } catch (_) {}
+  }
+  function legatoFine() {
+    Suoni.play("_fine", 0.8);
+    $("#conteggio").innerHTML = contaFinali();
+    const ind = $("#f-indietro"); if (ind) ind.addEventListener("click", indietro);
+    $("#f-nuova").addEventListener("click", nuova);
+    $("#f-finali").addEventListener("click", pannelloFinali);
+  }
+  function indietro() {
+    const s = store.storia.pop(); if (!s) return nuova();
+    Voci.stop(); mostra(G.load(s));
+  }
+
+  let pendenti = [];
+  function eventi(evs) {
+    pendenti.forEach(([id, fn]) => { clearTimeout(id); fn(true); }); pendenti = [];
+    evs.forEach((e, i) => { const fn = muto => {
+      pendenti = pendenti.filter(x => x[1] !== fn);
+      const suona = n => { if (!muto) Suoni.play(n); };
+      if (e.tipo === "oggetto") { avviso("Hai trovato", S.items[e.id].nome); suona("_oggetto"); }
+      else if (e.tipo === "perso") avviso("Hai perso", S.items[e.id].nome, "ferita");
+      else if (e.tipo === "indizio") { avviso("Nuovo indizio nel taccuino", S.clues[e.id], "indizio"); suona("_indizio"); }
+      else if (e.tipo === "ferita") { avviso("Sei ferito", "Salute: " + Math.max(0, e.n) + " su " + (S.max.salute || 3), "ferita"); suona("_ferita"); if (!muto) lampo(); }
+      else if (e.tipo === "cura") { avviso("Ti senti meglio", "Salute: " + e.n + " su " + (S.max.salute || 3)); suona("_cura"); }
+    }; pendenti.push([setTimeout(fn, 500 + i * 900), fn]); });
+  }
+  function avviso(t, d, cls) {
+    const el = document.createElement("div"); el.className = "avviso " + (cls || "");
+    el.innerHTML = `<small>${esc(t)}</small>${esc(d)}`;
+    const box = $("#avvisi"); while (box.children.length >= 2) box.firstChild.remove();
+    box.appendChild(el); setTimeout(() => el.remove(), 4400);
+  }
+  function lampo() { const el = document.createElement("div"); el.className = "lampo"; document.body.appendChild(el); setTimeout(() => el.remove(), 700); }
+
+  // ------------------------------------------------------------ pannelli
+  function apri(html, dopo) {
+    $("#pannello").innerHTML = html; $("#velo").hidden = false;
+    $("#pannello").querySelector("[data-chiudi]").addEventListener("click", chiudi);
+    if (dopo) dopo($("#pannello"));
+    const f = $("#pannello").querySelector("button, select, input"); if (f) f.focus();
+  }
+  function chiudi() { $("#velo").hidden = true; }
+  $("#velo").addEventListener("click", e => { if (e.target.id === "velo") chiudi(); });
+  addEventListener("keydown", e => {
+    if (e.key === "Escape" && !$("#velo").hidden) return chiudi();
+    if (!$("#velo").hidden || $("#gioco").hidden || !res) return;
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 9 && res.view.choices[n - 1]) scegli(res.view.choices[n - 1]);
+    if (e.key === "Enter" && res.view.choices.length === 1 && document.activeElement === document.body) scegli(res.view.choices[0]);
+  });
+  const testaPan = t => `<header><h2>${t}</h2><button class="ico" type="button" data-chiudi aria-label="Chiudi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>`;
+
+  function pannelloTaccuino() {
+    const og = G.st.items.map(id => `<li><b>${esc(S.items[id].nome)}</b><small>${esc(S.items[id].desc)}</small></li>`).join("");
+    const ind = G.st.clues.map(id => `<li><small class="indizio">${esc(S.clues[id])}</small></li>`).join("");
+    apri(testaPan("Taccuino di Kamy") +
+      `<h3>In tasca</h3>${og ? `<ul class="lista">${og}</ul>` : `<p class="vuoto">Le tasche sono vuote.</p>`}` +
+      `<h3>Indizi annotati · ${G.st.clues.length}</h3>${ind ? `<ul class="lista">${ind}</ul>` : `<p class="vuoto">Ancora nessun indizio. Guardati intorno.</p>`}`);
+  }
+  function pannelloFinali() {
+    const cards = Object.entries(S.endings).map(([id, e]) => store.finali.includes(id)
+      ? `<div><span${coloreTipo(e.tipo)}>${TIPI[e.tipo]}</span>${esc(e.titolo)}</div>`
+      : `<div class="ignoto"><span>${e.tipo === "segreto" ? "???" : TIPI[e.tipo]}</span>Non ancora scoperto</div>`).join("");
+    apri(testaPan("Finali scoperti") + `<p class="conteggio">${contaFinali()}</p><div class="finali">${cards}</div>`);
+  }
+  function opzioniVoci(sel) {
+    if (!Voci.voices.length) return `<option>Nessuna voce italiana trovata</option>`;
+    return Voci.voices.map(v => `<option value="${esc(v.name)}"${sel && sel.name === v.name ? " selected" : ""}>${esc(v.name)}</option>`).join("");
+  }
+  function pannelloMenu() {
+    const r = Voci.roles;
+    apri(testaPan("Menu") + `
+      <div class="menu-voci">
+        <button class="btn" type="button" id="m-finali">Finali scoperti</button>
+        <button class="btn" type="button" id="m-indietro"${store.storia.length ? "" : " disabled"}>Torna alla scelta precedente</button>
+        <button class="btn" type="button" id="m-nuova">Ricomincia da capo</button>
+        <button class="btn" type="button" id="m-titolo">Schermata del titolo</button>
+      </div>
+      <h3>Ascolto</h3>
+      <label class="interruttore" for="i-voce">Voce narrante<input type="checkbox" id="i-voce"${store.imp.voce ? " checked" : ""}></label>
+      <label class="interruttore" for="i-scelte">Leggi ad alta voce anche le scelte<input type="checkbox" id="i-scelte"${store.imp.scelte ? " checked" : ""}></label>
+      <div class="campo" style="margin-top:.9rem"><label for="i-vel">Velocità della voce</label><input type="range" id="i-vel" min="0.7" max="1.4" step="0.05" value="${store.imp.velocita}"></div>
+      <div class="campo"><label for="i-amb">Volume dei rumori d'ambiente</label><input type="range" id="i-amb" min="0" max="1" step="0.05" value="${store.imp.ambienti}"></div>
+      <div class="campo"><label for="i-sfx">Volume degli effetti</label><input type="range" id="i-sfx" min="0" max="1" step="0.05" value="${store.imp.effetti}"></div>
+      <h3>Voci dei personaggi</h3>
+      <p class="piccolo">Il gioco usa le voci italiane installate sul tuo dispositivo e cambia altezza e ritmo per ogni personaggio. Se ne hai più di una, puoi assegnarle qui.${Voci.recorded ? " Sono attive le voci registrate: queste scelte valgono solo dove manca un file audio." : ""}</p>
+      <div class="campo"><label for="r-narratore">Narratore</label><select id="r-narratore">${opzioniVoci(r.narratore)}</select></div>
+      <div class="campo"><label for="r-protagonista">${esc(nomeDi(S.meta.protagonista))}</label><select id="r-protagonista">${opzioniVoci(r.protagonista)}</select></div>
+      <div class="campo"><label for="r-donne">Personaggi femminili</label><select id="r-donne">${opzioniVoci(r.donne)}</select></div>
+      <div class="campo"><label for="r-uomini">Altri personaggi maschili</label><select id="r-uomini">${opzioniVoci(r.uomini)}</select></div>
+      <button class="btn" type="button" id="m-prova">Ascolta una prova</button>`, p => {
+      p.querySelector("#m-finali").addEventListener("click", pannelloFinali);
+      p.querySelector("#m-indietro").addEventListener("click", () => { chiudi(); indietro(); });
+      p.querySelector("#m-nuova").addEventListener("click", () => { chiudi(); nuova(); });
+      p.querySelector("#m-titolo").addEventListener("click", () => { chiudi(); titolo(); });
+      p.querySelector("#i-voce").addEventListener("change", e => { store.imp.voce = Voci.enabled = e.target.checked; aggiornaVoceBtn(); persist(); if (!e.target.checked) { Voci.stop(); controlli(false); } });
+      p.querySelector("#i-scelte").addEventListener("change", e => { store.imp.scelte = e.target.checked; persist(); });
+      p.querySelector("#i-vel").addEventListener("input", e => { store.imp.velocita = Voci.rate = +e.target.value; persist(); });
+      const lv = () => Suoni.setLevels(store.imp.ambienti, store.imp.effetti);
+      p.querySelector("#i-amb").addEventListener("input", e => { store.imp.ambienti = +e.target.value; lv(); persist(); });
+      p.querySelector("#i-sfx").addEventListener("input", e => { store.imp.effetti = +e.target.value; lv(); persist(); });
+      ["narratore", "protagonista", "donne", "uomini"].forEach(k => p.querySelector("#r-" + k).addEventListener("change", e => {
+        const v = Voci.voices.find(x => x.name === e.target.value); if (v) { Voci.roles[k] = v; store.imp.ruoli[k] = v.name; persist(); }
+      }));
+      p.querySelector("#m-prova").addEventListener("click", () => Voci.speak(S.prove.length ? S.prove : [{ who: null, text: "Prova della voce narrante." }], S));
+    });
+  }
+  function aggiornaVoceBtn() { $("#b-voce").setAttribute("aria-pressed", String(!!store.imp.voce)); }
+
+  $("#b-taccuino").addEventListener("click", pannelloTaccuino);
+  $("#b-menu").addEventListener("click", pannelloMenu);
+  $("#b-voce").addEventListener("click", () => {
+    store.imp.voce = Voci.enabled = !store.imp.voce; aggiornaVoceBtn(); persist();
+    if (store.imp.voce) leggi(); else { Voci.stop(); evidenzia(-2); controlli(false); }
+  });
+  $("#b-finali").addEventListener("click", pannelloFinali);
+
+  // ------------------------------------------------------------ avvio
+  function avviaAudio() {
+    Suoni.init(); Suoni.setLevels(store.imp.ambienti, store.imp.effetti);
+    try { navigator.wakeLock && navigator.wakeLock.request("screen").catch(() => {}); } catch (e) {}
+  }
+  function entra() { $("#titolo").hidden = true; $("#gioco").hidden = false; aggiornaVoceBtn(); }
+  function nuova() {
+    avviaAudio(); Voci.stop(); store.storia = []; entra();
+    mostra(G.start());
+  }
+  function continua() {
+    avviaAudio(); entra();
+    try { mostra(G.load(store.salvataggio)); } catch (e) { nuova(); }
+  }
+  function titolo() {
+    Voci.stop(); Suoni.stopAmbient(); $("#gioco").hidden = true; $("#titolo").hidden = false;
+    $("#b-continua").hidden = !store.salvataggio; window.__cielo.riavvia();
+  }
+  $("#b-nuova").addEventListener("click", nuova);
+  $("#b-continua").addEventListener("click", continua);
+  $("#b-continua").hidden = !store.salvataggio;
+  if (store.salvataggio) { $("#b-continua").classList.add("primo"); $("#b-nuova").classList.remove("primo"); }
+  Voci.detectRecorded(S.start + "_0", () => {});
+
+  function snapshot() { if (window.claude && window.claude.hot && window.claude.hot.snapshot) try { window.claude.hot.snapshot(() => ({ salvataggio: G.save(), inGioco: !$("#gioco").hidden })); } catch (e) {} }
+  const boot = data => { if (data && data.inGioco && data.salvataggio) { store.salvataggio = data.salvataggio; } };
+  if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot(window.claude && window.claude.hot && window.claude.hot.data || {});
+})();
+</script>
