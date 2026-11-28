@@ -1,9 +1,10 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=32';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=32';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=33';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=33';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=33';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '32';
+const VERSIONE = '33';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -106,6 +107,7 @@ sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') { cleanup(); rend
 
 initScacchi({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initBalilla({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
+initBiliardo({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 boot();
 async function boot() {
   try {
@@ -269,6 +271,9 @@ async function afterLogin() {
   if ((apri || '').startsWith('scacchi:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openChessGame(apri.slice(8)); return;
   }
+  if ((apri || '').startsWith('biliardo:')) {
+    localStorage.removeItem('apri'); S.tab = 'chat'; render(); openPoolGame({ mode: 'online', id: apri.slice(9) }); return;
+  }
   if ((apri || '').startsWith('torneo:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openTorneo(apri.slice(7)); return;
   }
@@ -419,6 +424,8 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refreshPollsSoon)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `circle_id=eq.${cid}` }, (p) => refreshChess(p.new.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_cheers' }, (p) => refreshChess(p.new?.game_id || p.old?.game_id))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pool_games', filter: `circle_id=eq.${cid}` }, (p) => refreshPool(p.new.id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'pool_cheers' }, (p) => refreshPool(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_tournaments', filter: `circle_id=eq.${cid}` }, (p) => refreshTorneo(p.new?.id || p.old?.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_players' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_teams' }, (p) => refreshTorneo(p.new?.tournament_id || p.old?.tournament_id))
@@ -838,7 +845,7 @@ function appendMsg(m, scroll) {
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
   const imgUrl = m.image_path ? sb.storage.from('foto').getPublicUrl(m.image_path).data.publicUrl : null;
-  const bubble = m.game_id ? chessChatCard(m.game_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
+  const bubble = m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
     : imgUrl ? h('div', { class: 'bubble photo' }, h('img', { src: imgUrl, loading: 'lazy', alt: 'foto', onclick: () => openPhoto(imgUrl),
         onload: () => { if (scroll) window.scrollTo({ top: document.body.scrollHeight }); } }), m.body ? h('div', { class: 'cap' }, m.body) : null)
     : h('div', { class: 'bubble' }, m.body);
@@ -895,6 +902,14 @@ async function tabGiochi(root) {
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, g.unit(s.score)));
       })) : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato oggi.')));
   }
+  // 🎱 Biliardo
+  const tiri = await poolTurns().catch(() => 0);
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openPoolLobby },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#bfe8cf,#2f9e63)' }, '🎱'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Biliardo'),
+        h('div', { class: 'muted small' }, 'Palla 8: contro il computer, in allenamento o sfidando la cerchia, anche a squadre.'), credit()),
+      h('span', { class: 'btn small' }, tiri ? `👉 ${tiri}` : 'Gioca'))));
   // ♟️ Scacchi: sfide nella cerchia
   const turni = await myTurns().catch(() => 0);
   root.append(h('div', { class: 'card topo-list' },
@@ -1343,7 +1358,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=32');
+  const { startTopolini } = await import('./topolini.js?v=33');
   startTopolini({
     level,
     onWin: async (next) => {
