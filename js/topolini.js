@@ -2,7 +2,7 @@
 // Regole: tocchi la tana in cima a una colonna, va in uno dei 5 posti e i topolini del suo colore
 // escono a mangiare solo i blocchetti raggiungibili dall'esterno. Se riempi i 5 posti senza poter mangiare, hai perso.
 
-import { MOSAICI } from './livelli-topolini.js?v=29';
+import { MOSAICI } from './livelli-topolini.js?v=30';
 
 const SLOTS = 5;
 
@@ -343,8 +343,8 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
 
   // la passeggiata: camminano sul bordo e nei buchi già mangiati, mai sopra i blocchetti
   const WALK = 175; // pixel al secondo su un telefono normale
-  const GAP = 450; // millisecondi tra un topolino e il successivo all'ingresso (fila ordinata)
-  let lastDoor = 0;
+  const GAP = 450; // millisecondi tra un topolino e il successivo della stessa tana
+  // ogni tana ha la sua fila: le tane escono in contemporanea, i topolini della stessa tana uno dietro l'altro
   const layoutScale = () => Math.max(0.8, Math.min(1.4, layout.cw / 390));
   const cellCenter = (gy, gx) => [ox + (gx - 0.5) * cell, oy + (gy - 0.5) * cell]; // coordinate con bordo di 1 cella
   // percorso ordinato: tutti entrano dallo stesso punto in basso e girano attorno al disegno in senso orario,
@@ -412,14 +412,14 @@ export function startTopolini({ level: startLevel = 1, onWin, onClose }) {
     slots.forEach((s, si) => {
       if (!s) return;
       s.cool -= dt;
-      if (s.left > 0 && s.cool <= 0 && now - s.born > 300 && now - lastDoor > GAP) {
+      if (s.left > 0 && s.cool <= 0 && now - s.born > 300 && now - (s.lastOut || 0) > GAP) {
         const sx = slotX(si), sy = layout.slotY - layout.slotW * 0.3;
         const target = pickTarget(s.color, sx);
         if (target >= 0) {
           eating.set(target, (eating.get(target) || 0) + 1);
           const route = walkPath(sx, sy, target);
           mice.push({ slot: si, color: s.color, target, route, path: route.go, lens: pathLens(route.go), d: 0, phase: 'go', wait: 0 });
-          s.left--; s.inFlight++; s.cool = 0.3; lastDoor = now;
+          s.left--; s.inFlight++; s.cool = 0.3; s.lastOut = now;
         }
       }
     });
