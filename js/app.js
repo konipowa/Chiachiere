@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '24';
+const VERSIONE = '25';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -89,6 +89,7 @@ if ('serviceWorker' in navigator) {
   const qs = new URLSearchParams(location.search);
   if (qs.get('apri')) localStorage.setItem('apri', qs.get('apri'));
   if (qs.get('sondaggio')) localStorage.setItem('sondaggio', qs.get('sondaggio'));
+  if (qs.get('argomento')) localStorage.setItem('argomento', qs.get('argomento'));
   if (qs.get('cerchia')) localStorage.setItem('cerchia', qs.get('cerchia'));
   if (qs.get('apri') || qs.get('cerchia')) history.replaceState(null, '', location.pathname + (qs.get('invito') ? '?invito=' + qs.get('invito') : ''));
   const code = qs.get('invito');
@@ -125,7 +126,8 @@ async function renderAuth(mode) {
   let avatar = AVATARS[Math.floor(Math.random() * 8)];
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
   const err = h('div', { class: 'error' });
-  const pollBox = invite && localStorage.getItem('sondaggio') ? await pollPreviewCard(localStorage.getItem('sondaggio'), invite, mode) : null;
+  const pollBox = invite && localStorage.getItem('argomento') ? await topicPreviewCard(localStorage.getItem('argomento'), invite, mode)
+    : invite && localStorage.getItem('sondaggio') ? await pollPreviewCard(localStorage.getItem('sondaggio'), invite, mode) : null;
   const name = h('input', { class: 'input', id: 'nome', autocomplete: 'username', autocapitalize: 'none', maxlength: 24, placeholder: 'es. Giulia' });
   const pass = h('input', { class: 'input', id: 'pass', type: 'password', autocomplete: mode === 'new' ? 'new-password' : 'current-password', placeholder: 'almeno 6 caratteri' });
   const show = h('button', { class: 'linkbtn small', type: 'button', onclick: () => { pass.type = pass.type === 'password' ? 'text' : 'password'; show.textContent = pass.type === 'password' ? 'Mostra password' : 'Nascondi password'; } }, 'Mostra password');
@@ -206,6 +208,14 @@ async function afterLogin() {
   await loadCircles();
   if (!S.circles.length) return renderNoCircle();
   await openCircle(localStorage.getItem('cerchia'));
+  if (localStorage.getItem('argomento')) {
+    localStorage.removeItem('argomento');
+    const pend = JSON.parse(localStorage.getItem('votoPendente') || 'null');
+    localStorage.removeItem('votoPendente'); localStorage.removeItem('sondaggio');
+    if (pend) { const { error } = await sb.from('poll_votes').upsert({ poll_id: pend.poll, user_id: S.me.id, option: pend.option }); if (!error) toast('Voto registrato! 🗳️', 3000); }
+    S.tab = 'oggi'; render();
+    return maybeShowInstall();
+  }
   const pollId = localStorage.getItem('sondaggio');
   if (pollId) {
     localStorage.removeItem('sondaggio');
@@ -477,7 +487,8 @@ function topicCard(p) {
   const replies = h('div', { class: 'comments', 'data-post': p.id, 'data-open': '1' });
   loadComments(p.id, replies, 'Dì la tua…');
   return h('div', { class: 'card topic' },
-    h('div', { class: 'topic-head' }, h('span', {}, '🔥 Argomento di oggi'), h('div', { class: 'spacer' }), deleteBtn(p)),
+    h('div', { class: 'topic-head' }, h('span', {}, '🔥 Argomento di oggi'), h('div', { class: 'spacer' }),
+      h('button', { class: 'btn plain small', 'aria-label': 'Condividi', onclick: () => shareTopic(p) }, '📤'), deleteBtn(p)),
     h('div', { class: 'post-head' }, avatarEl(who),
       h('div', {}, h('div', { class: 'name' }, who.username), h('div', { class: 'muted small' }, `l'ha lanciato alle ${timeOf(p.created_at)}`))),
     ...postBody(p),
@@ -494,7 +505,7 @@ function pastCard(p, commentsOpen) {
   return h('div', { class: 'card' },
     h('div', { class: 'post-head' }, avatarEl(who),
       h('div', {}, h('div', { class: 'name' }, who.username), h('div', { class: 'muted small', style: 'text-transform:capitalize' }, dayLabel(p.day))),
-      h('div', { class: 'spacer' }), deleteBtn(p)),
+      h('div', { class: 'spacer' }), h('button', { class: 'btn plain small', 'aria-label': 'Condividi', onclick: () => shareTopic(p) }, '📤'), deleteBtn(p)),
     ...postBody(p),
     reactBar(p, h('button', { class: 'react', onclick: () => {
       const show = cbox.style.display === 'none';
@@ -854,6 +865,33 @@ function pollCard(p) {
       await sb.from('polls').update({ closed: true }).eq('id', p.id); afterPollChange();
     } }, 'Chiudi sondaggio') : null);
 }
+async function shareTopic(p) {
+  const link = `${inviteLink(circle().invite_code)}&argomento=${p.id}`;
+  const who = person(p.user_id).username;
+  const text = `🔥 L'argomento di oggi su Chiacchiere, lanciato da ${who}:\n«${(p.body || '📷 foto').slice(0, 200)}»\n${p.polls ? '📊 C\'è anche un sondaggio!\n' : ''}\nDì la tua 👇`;
+  if (navigator.share) { try { await navigator.share({ title: 'Argomento di oggi', text, url: link }); } catch {} }
+  else { await navigator.clipboard.writeText(`${text}\n${link}`); toast('Link copiato! Incollalo su WhatsApp 👍'); }
+}
+
+// anteprima dell'argomento per chi arriva dal link (anche senza account)
+async function topicPreviewCard(postId, code, mode) {
+  const { data } = await sb.rpc('topic_preview', { p_post: postId, p_code: code });
+  const t = data?.[0];
+  if (!t) return null;
+  const img = t.image_path ? sb.storage.from('foto').getPublicUrl(t.image_path).data.publicUrl : null;
+  const poll = t.poll_id ? await pollPreviewCard(t.poll_id, code, mode) : null;
+  if (poll) poll.style.cssText = 'margin:12px 0 0;box-shadow:none;background:rgba(255,255,255,.96);color:var(--ink)';
+  return h('div', { class: 'card topic', style: 'margin-bottom:14px' },
+    h('div', { class: 'topic-head' }, h('span', {}, `🔥 Argomento ${dayLabel(t.day) === 'Oggi' ? 'di oggi' : 'del giorno'}`)),
+    h('div', { class: 'post-head' }, avatarEl({ avatar: t.avatar, color: t.color }),
+      h('div', {}, h('div', { class: 'name' }, t.author), h('div', { class: 'muted small' }, `in «${t.circle_name}»`))),
+    t.body ? h('div', { class: 'post-body' }, t.body) : null,
+    img ? h('img', { class: 'post-img', src: img, alt: '' }) : null,
+    poll,
+    h('p', { style: 'margin:12px 0 0;font-weight:700' }, `💬 ${t.replies} ${t.replies === 1 ? 'risposta' : 'risposte'} · ${t.reactions} reazioni — ` +
+      (mode === 'new' ? 'crea il profilo qui sotto per leggerle e dire la tua!' : 'accedi per leggerle e dire la tua!')));
+}
+
 async function sharePoll(p) {
   const link = `${inviteLink(circle().invite_code)}&sondaggio=${p.id}`;
   const text = `📊 ${p.question}\n${p.options.map((o) => '▫️ ' + o).join('\n')}\n\nVota qui 👇`;
@@ -1176,7 +1214,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=24');
+  const { startTopolini } = await import('./topolini.js?v=25');
   startTopolini({
     level,
     onWin: async (next) => {
