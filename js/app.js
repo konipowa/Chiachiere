@@ -1,9 +1,9 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=30';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=30';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=31';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=31';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '30';
+const VERSIONE = '31';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -120,6 +120,30 @@ async function boot() {
 }
 
 /* ============ ACCESSO ============ */
+// link d'invito di una cerchia che non c'è più: lo diciamo prima della registrazione
+function renderDeletedCircle() {
+  const choose = (crea) => {
+    localStorage.removeItem('invito'); localStorage.removeItem('invitoDa');
+    if (crea) localStorage.setItem('creaCerchia', '1'); else localStorage.removeItem('creaCerchia');
+    renderAuth('new');
+  };
+  $app.replaceChildren(h('div', { class: 'page no-nav' },
+    h('div', { class: 'center', style: 'margin:24px 0 18px' }, h('div', { class: 'logo-big' }, '💬'), h('h1', {}, 'Chiacchiere')),
+    h('div', { class: 'card center' }, h('div', { style: 'font-size:2.6rem' }, '😕'),
+      h('h2', { style: 'margin:6px 0' }, 'Questa cerchia è stata eliminata'),
+      h('p', { class: 'muted' }, 'Chi l\'aveva creata l\'ha cancellata (o il link non è più valido). Vuoi crearne una tu e invitare i tuoi amici?'),
+      h('button', { class: 'btn block', onclick: () => choose(true) }, '✨ Sì, creo una cerchia'),
+      h('button', { class: 'btn plain block', style: 'margin-top:8px', onclick: () => choose(false) }, 'Più tardi')),
+    h('p', { class: 'center' }, 'Hai già un account? ', h('button', { class: 'linkbtn', onclick: () => { localStorage.removeItem('invito'); renderAuth('login'); } }, 'Accedi'))));
+}
+// aspetta che non ci siano altri fogli aperti (es. la guida all'installazione) prima di aprirne uno
+function whenNoSheet(fn) { const t = setInterval(() => { if (!document.getElementById('overlay')) { clearInterval(t); fn(); } }, 1200); }
+function askCreateCircle(title) {
+  openSheet(h('div', { class: 'center' }, h('div', { style: 'font-size:2.4rem' }, '😕'), h('h2', { style: 'margin:6px 0' }, title),
+    h('p', { class: 'muted' }, 'Vuoi crearne una tu?'),
+    h('button', { class: 'btn block', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Nuova cerchia'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '✨ Crea una cerchia'),
+    h('button', { class: 'btn plain block', style: 'margin-top:8px', onclick: closeSheet }, 'Più tardi')));
+}
 async function renderAuth(mode) {
   const invite = localStorage.getItem('invito');
   mode = mode || (invite ? 'new' : 'login');
@@ -127,6 +151,7 @@ async function renderAuth(mode) {
   if (invite) {
     const { data } = await sb.rpc('circle_name_by_code', { p_code: invite });
     circleName = data;
+    if (!circleName) return renderDeletedCircle();
   }
   let avatar = AVATARS[Math.floor(Math.random() * 8)];
   const color = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -208,11 +233,14 @@ async function afterLogin() {
   if (invite) {
     const { data: cid, error: je } = await sb.rpc('join_circle', { p_code: invite, p_from: localStorage.getItem('invitoDa') || null });
     localStorage.removeItem('invito'); localStorage.removeItem('invitoDa');
-    if (je) toast(errMsg(je)); else { localStorage.setItem('cerchia', cid); toast('Sei entrato nella cerchia! 🎉'); }
+    if (je) S.cerchiaSparita = true; else { localStorage.setItem('cerchia', cid); toast('Sei entrato nella cerchia! 🎉'); }
   }
   await loadCircles();
-  if (!S.circles.length) return renderNoCircle();
+  const crea = localStorage.getItem('creaCerchia'); localStorage.removeItem('creaCerchia');
+  if (!S.circles.length) { renderNoCircle(); if (S.cerchiaSparita) toast('Quella cerchia è stata eliminata: creane una tu! ✨', 4000); S.cerchiaSparita = false; return; }
   await openCircle(localStorage.getItem('cerchia'));
+  if (S.cerchiaSparita) { S.cerchiaSparita = false; askCreateCircle('Quella cerchia è stata eliminata'); return; }
+  if (crea) { whenNoSheet(() => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '✨ Crea la tua cerchia'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms()))); return; }
   if (localStorage.getItem('argomento')) {
     localStorage.removeItem('argomento');
     const pend = JSON.parse(localStorage.getItem('votoPendente') || 'null');
@@ -286,6 +314,12 @@ function watchAllCircles() {
       const m = p.new;
       if (m.circle_id === S.circleId || m.user_id === S.me.id) return;
       S.unreadBy[m.circle_id] = (S.unreadBy[m.circle_id] || 0) + 1; updatePicker();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'circles' }, (p) => {
+      const gone = S.circles.find((c) => c.id === p.old?.id);
+      if (!gone) return;
+      toast(`😕 La cerchia «${gone.name}» è stata eliminata da chi l'aveva creata`, 4500);
+      if (gone.id === S.circleId) afterCircleGone(); else loadCircles().then(updatePicker);
     }).subscribe();
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.me && S.circleId) loadUnread(); });
@@ -1283,7 +1317,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=30');
+  const { startTopolini } = await import('./topolini.js?v=31');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1605,7 +1639,17 @@ function tabProfilo(root) {
         else { await navigator.clipboard.writeText(`${text} ${link}`); toast('Link copiato! Incollalo su WhatsApp 👍'); }
       } }, '📤 Invita amici'),
       h('div', { style: 'margin-top:14px' }, [...S.members.values()].map((m) => h('div', { class: 'rank' }, avatarEl(m, 'sm'),
-        h('div', { style: 'flex:1;font-weight:700' }, m.username), m.id === c.owner ? h('span', { class: 'muted small' }, '👑 fondatore') : null)))),
+        h('div', { style: 'flex:1;font-weight:700' }, m.username), m.id === c.owner ? h('span', { class: 'muted small' }, '👑 fondatore') : null))),
+      c.owner === S.me.id ? holdButton('🗑️ Tieni premuto per cancellare la cerchia', async () => {
+        const { error } = await sb.rpc('delete_circle', { p_circle: c.id });
+        if (error) return toast(errMsg(error));
+        toast(`Cerchia «${c.name}» cancellata`); afterCircleGone();
+      }) : h('button', { class: 'btn plain block', style: 'margin-top:12px', onclick: async () => {
+        if (!(await askConfirm('🚪 Uscire dalla cerchia?', `Non vedrai più chat e post di «${c.name}». Potrai rientrare con un nuovo invito.`, 'Sì, esco'))) return;
+        const { error } = await sb.rpc('leave_circle', { p_circle: c.id });
+        if (error) return toast(errMsg(error));
+        toast('Sei uscito dalla cerchia'); afterCircleGone();
+      } }, '🚪 Esci dalla cerchia')),
     notifCard(),
     h('div', { class: 'card stack' },
       h('button', { class: 'btn ghost block', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Altre cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '➕ Crea o entra in un\'altra cerchia'),
@@ -1613,6 +1657,31 @@ function tabProfilo(root) {
       h('p', { class: 'center credit' }, `Chiacchiere · versione ${VERSIONE}`),
       h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) { await unsubscribePush(); sb.auth.signOut(); } } }, 'Esci')),
   );
+}
+
+// bottone "tieni premuto": si riempie in 2,5 secondi, se lasci prima non succede niente
+function holdButton(label, onDone, ms = 2500) {
+  const bar = h('span', { class: 'hold-bar' });
+  const txt = h('span', { class: 'hold-txt' }, label);
+  const b = h('button', { class: 'hold-btn', type: 'button' }, bar, txt);
+  let t0 = 0, raf = 0, done = false;
+  const tick = () => {
+    const k = Math.min(1, (performance.now() - t0) / ms);
+    bar.style.width = k * 100 + '%';
+    if (k >= 1) { done = true; txt.textContent = 'Cancellata…'; navigator.vibrate?.(60); onDone(); return; }
+    raf = requestAnimationFrame(tick);
+  };
+  const start = (e) => { if (done) return; e.preventDefault(); t0 = performance.now(); txt.textContent = 'Continua a tenere premuto…'; navigator.vibrate?.(15); raf = requestAnimationFrame(tick); };
+  const stop = () => { if (done) return; cancelAnimationFrame(raf); bar.style.transition = 'width .25s'; bar.style.width = '0%'; setTimeout(() => (bar.style.transition = ''), 260); txt.textContent = label; };
+  b.addEventListener('pointerdown', start); b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); b.addEventListener('pointercancel', stop);
+  b.addEventListener('contextmenu', (e) => e.preventDefault());
+  return b;
+}
+async function afterCircleGone() {
+  localStorage.removeItem('cerchia');
+  await loadCircles();
+  if (!S.circles.length) { if (S.channel) sb.removeChannel(S.channel); S.channel = null; return renderNoCircle(); }
+  S.tab = 'oggi'; openCircle(S.circles[0].id);
 }
 
 /* ============ NOTIFICHE PUSH ============ */
