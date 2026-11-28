@@ -519,3 +519,30 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .bubble.file.gone { cursor: default; opacity: .7; }
 .space-bar { height: 8px; border-radius: 99px; background: #eee3d6; overflow: hidden; margin: 6px 0; }
 .space-bar i { display: block; height: 100%; border-radius: 99px; }
+
+/* 🔢 SUDOKU */
+.sd-root { background: linear-gradient(180deg, #f4f8fc, #e6eef7); }
+.sd-main { max-width: 460px; margin: 0 auto; }
+.sd-info { text-align: center; font-size: .85rem; font-weight: 700; color: var(--soft); margin: 2px 0 6px; min-height: 1.2em; }
+.sd-grid { display: grid; grid-template-columns: repeat(9, 1fr); border: 2.5px solid #2c3e50; border-radius: 10px; overflow: hidden; background: #fff; aspect-ratio: 1; box-shadow: 0 6px 18px rgba(30, 60, 90, .15); }
+.sd-grid.win { animation: sdwin .8s ease 2; }
+@keyframes sdwin { 50% { transform: scale(1.03); box-shadow: 0 0 0 6px #ffd54a; } }
+.sd-cell { border: none; border-right: 1px solid #cfd8e3; border-bottom: 1px solid #cfd8e3; background: #fff; font: inherit; font-size: clamp(1.1rem, 5.6vw, 1.7rem); font-weight: 600; color: #1e6fd9; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; min-width: 0; min-height: 0; position: relative; }
+.sd-cell.br { border-right: 2.5px solid #2c3e50; } .sd-cell.bb { border-bottom: 2.5px solid #2c3e50; }
+.sd-cell:nth-child(9n) { border-right: none; } .sd-cell:nth-child(n+73) { border-bottom: none; }
+.sd-cell.given { color: #1c2833; font-weight: 800; }
+.sd-cell.peer { background: #eef4fb; } .sd-cell.same { background: #d6e6fa; } .sd-cell.sel { background: #bcd7f7; }
+.sd-cell.err { color: #e53935; background: #fde8e8; }
+.sd-notes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; height: 100%; padding: 1px; }
+.sd-notes i { font-style: normal; font-size: clamp(.5rem, 2.2vw, .7rem); color: #6b7c93; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.sd-tools { display: flex; justify-content: space-around; margin: 12px 0 8px; }
+.sd-tool { display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; font-size: 1.4rem; cursor: pointer; padding: 4px 6px; border-radius: 12px; color: inherit; }
+.sd-tool span { font-size: .68rem; font-weight: 700; color: var(--soft); }
+.sd-tool.on { background: #d6e6fa; }
+.sd-pad { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
+.sd-num { border: none; border-radius: 12px; background: #fff; box-shadow: 0 2px 6px rgba(30, 60, 90, .12); font: inherit; font-size: 1.45rem; font-weight: 700; color: #1e6fd9; padding: 8px 0 4px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.sd-num small { font-size: .62rem; color: var(--soft); font-weight: 700; }
+.sd-num.gone { opacity: .35; }
+.sd-mini { display: grid; grid-template-columns: repeat(9, 1fr); width: 108px; height: 108px; flex-shrink: 0; border: 1.5px solid #2c3e50; border-radius: 6px; overflow: hidden; background: #fff; }
+.sd-mini span { font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #1c2833; }
+.sd-mini span.alt { background: #eef4fb; }

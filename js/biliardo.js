@@ -1,5 +1,5 @@
 // 🎱 Biliardo palla 8 di Chiacchiere: allenamento, contro il computer, sfide nella cerchia (anche a squadre).
-import * as P from './biliardo-fisica.js?v=37';
+import * as P from './biliardo-fisica.js?v=38';
 
 let D;
 export function initBiliardo(deps) { D = deps; }
