@@ -1,9 +1,9 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=31';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=31';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=32';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=32';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '31';
+const VERSIONE = '32';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -681,7 +681,28 @@ async function tabChat(root) {
   }
 
   // --- registrazione vocale ---
-  const normalBar = h('div', { class: 'inner' }, ta, sendBtn, micBtn);
+  // --- foto ---
+  const photoInput = h('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: () => { const f = photoInput.files[0]; photoInput.value = ''; if (f) pickPhoto(f); } });
+  const photoBtn = h('button', { class: 'btn round ghost', 'aria-label': 'Manda una foto', onclick: () => photoInput.click() }, '📷');
+  async function pickPhoto(f) {
+    let blob;
+    try { blob = await compressImage(f); } catch { return toast('Non riesco a leggere la foto.'); }
+    const url = URL.createObjectURL(blob);
+    const cap = h('input', { class: 'input', maxlength: 1000, placeholder: 'Aggiungi una didascalia (se vuoi)' });
+    const go = h('button', { class: 'btn block', style: 'margin-top:10px', onclick: async () => {
+      go.disabled = true; go.textContent = 'Invio…';
+      const path = `${S.me.id}/chat-${Date.now()}.jpg`;
+      const up = await sb.storage.from('foto').upload(path, blob, { contentType: 'image/jpeg' });
+      if (up.error) { go.disabled = false; go.textContent = '➤ Invia'; return toast(errMsg(up.error)); }
+      const { data, error } = await sb.from('messages').insert({ circle_id: S.circleId, user_id: S.me.id, body: cap.value.trim() || null, image_path: path }).select().single();
+      if (error) { sb.storage.from('foto').remove([path]); go.disabled = false; go.textContent = '➤ Invia'; return toast(errMsg(error)); }
+      closeSheet(); URL.revokeObjectURL(url); appendMsg(data, true);
+    } }, '➤ Invia');
+    openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, '📷 Manda una foto'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')),
+      h('img', { src: url, class: 'chat-photo-preview' }), cap, go));
+    setTimeout(() => cap.focus(), 300);
+  }
+  const normalBar = h('div', { class: 'inner' }, photoInput, photoBtn, ta, sendBtn, micBtn);
   const recTime = h('span', { class: 'rec-time' }, '0:00');
   const recBar = h('div', { class: 'inner rec', style: 'display:none' },
     h('button', { class: 'btn round ghost', 'aria-label': 'Annulla', onclick: () => stopRec(false) }, '✕'),
@@ -816,16 +837,21 @@ function appendMsg(m, scroll) {
   if (list.querySelector(`[data-id="${m.id}"]`)) return;
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
-  const bubble = m.game_id ? chessChatCard(m.game_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
+  const imgUrl = m.image_path ? sb.storage.from('foto').getPublicUrl(m.image_path).data.publicUrl : null;
+  const bubble = m.game_id ? chessChatCard(m.game_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
+    : imgUrl ? h('div', { class: 'bubble photo' }, h('img', { src: imgUrl, loading: 'lazy', alt: 'foto', onclick: () => openPhoto(imgUrl),
+        onload: () => { if (scroll) window.scrollTo({ top: document.body.scrollHeight }); } }), m.body ? h('div', { class: 'cap' }, m.body) : null)
+    : h('div', { class: 'bubble' }, m.body);
   const row = h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
     me ? null : avatarEl(w, 'sm'),
     h('div', {}, me ? null : h('div', { class: 'who' }, w.username), bubble, h('div', { class: 'time' }, timeOf(m.created_at))));
   onLongPress(bubble, () => messageMenu({
-    text: m.body, mine: me, audioPath: m.audio_path, preview: m.audio_path ? `🎤 Vocale (${fmtSecs(m.audio_secs || 0)})` : m.body,
+    text: m.body, mine: me, audioPath: m.audio_path, imageUrl: imgUrl, preview: m.audio_path ? `🎤 Vocale (${fmtSecs(m.audio_secs || 0)})` : imgUrl ? `📷 Foto${m.body ? ': ' + m.body : ''}` : m.body,
     onDelete: async () => {
       const { error } = await sb.from('messages').delete().eq('id', m.id);
       if (error) return toast(errMsg(error));
       if (m.audio_path) sb.storage.from('audio').remove([m.audio_path]);
+      if (m.image_path) sb.storage.from('foto').remove([m.image_path]);
       row.remove(); toast('Messaggio eliminato');
     },
   }));
@@ -1317,7 +1343,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=31');
+  const { startTopolini } = await import('./topolini.js?v=32');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1762,12 +1788,22 @@ function onLongPress(el, fn) {
   el.addEventListener('contextmenu', (e) => e.preventDefault());
   el.classList.add('pressable');
 }
-function messageMenu({ text, preview, mine, onDelete, audioPath }) {
+// foto a tutto schermo
+function openPhoto(url) {
+  const v = h('div', { class: 'photo-view', onclick: () => v.remove() }, h('img', { src: url, alt: 'foto' }), h('button', { class: 'topo-x', 'aria-label': 'Chiudi' }, '✕'));
+  document.body.append(v);
+}
+function messageMenu({ text, preview, mine, onDelete, audioPath, imageUrl }) {
   const canShare = !!navigator.share;
-  const share = canShare && (text || audioPath) ? h('button', { class: 'menu-btn', onclick: async () => {
+  const share = canShare && (text || audioPath || imageUrl) ? h('button', { class: 'menu-btn', onclick: async () => {
     closeSheet();
     try {
-      if (audioPath) {
+      if (imageUrl) {
+        const blob = await (await fetch(imageUrl)).blob();
+        const file = new File([blob], 'foto-chiacchiere.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], ...(text ? { text } : {}) });
+        else await navigator.share({ url: imageUrl });
+      } else if (audioPath) {
         const blob = await getVoice(audioPath);
         if (!blob) return toast('Vocale non disponibile');
         const file = new File([blob], `vocale-chiacchiere.${blob.type.includes('webm') ? 'webm' : 'm4a'}`, { type: blob.type || 'audio/mp4' });

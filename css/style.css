@@ -453,3 +453,10 @@ button.circle-pick { position: relative; cursor: pointer; font: inherit; font-we
 .hold-btn { position: relative; overflow: hidden; width: 100%; margin-top: 14px; padding: 14px; border-radius: 14px; border: 2px solid #d9534f; background: #fff; color: #c0392b; font: inherit; font-weight: 800; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none; }
 .hold-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #f6c6c2; }
 .hold-txt { position: relative; }
+.bubble.photo { padding: 4px; max-width: 260px; }
+.bubble.photo img { display: block; width: 100%; max-height: 340px; object-fit: cover; border-radius: 14px; cursor: zoom-in; background: #eee; min-height: 80px; }
+.bubble.photo .cap { padding: 6px 8px 4px; }
+.chat-photo-preview { display: block; width: 100%; max-height: 50vh; object-fit: contain; border-radius: 14px; margin: 12px 0; background: #f2e9df; }
+.photo-view { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.92); display: flex; align-items: center; justify-content: center; }
+.photo-view img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.photo-view .topo-x { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 12px; }
