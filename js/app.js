@@ -1,7 +1,7 @@
 import { PAROLE } from './parole.js';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '23';
+const VERSIONE = '24';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -89,6 +89,8 @@ if ('serviceWorker' in navigator) {
   const qs = new URLSearchParams(location.search);
   if (qs.get('apri')) localStorage.setItem('apri', qs.get('apri'));
   if (qs.get('sondaggio')) localStorage.setItem('sondaggio', qs.get('sondaggio'));
+  if (qs.get('cerchia')) localStorage.setItem('cerchia', qs.get('cerchia'));
+  if (qs.get('apri') || qs.get('cerchia')) history.replaceState(null, '', location.pathname + (qs.get('invito') ? '?invito=' + qs.get('invito') : ''));
   const code = qs.get('invito');
   if (code) {
     localStorage.setItem('invito', code.toUpperCase());
@@ -215,6 +217,11 @@ async function afterLogin() {
     }
     S.tab = 'giochi'; S.extraView = 'utilita'; render();
     return maybeShowInstall();
+  }
+  syncPush();
+  const apri = localStorage.getItem('apri');
+  if (['chat', 'amici', 'oggi'].includes(apri)) {
+    localStorage.removeItem('apri'); S.tab = apri; if (apri === 'chat') S.unread = 0; render(); return;
   }
   if (localStorage.getItem('apri') === 'santa') {
     localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
@@ -1169,7 +1176,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=23');
+  const { startTopolini } = await import('./topolini.js?v=24');
   startTopolini({
     level,
     onWin: async (next) => {
@@ -1492,12 +1499,77 @@ function tabProfilo(root) {
       } }, '📤 Invita amici'),
       h('div', { style: 'margin-top:14px' }, [...S.members.values()].map((m) => h('div', { class: 'rank' }, avatarEl(m, 'sm'),
         h('div', { style: 'flex:1;font-weight:700' }, m.username), m.id === c.owner ? h('span', { class: 'muted small' }, '👑 fondatore') : null)))),
+    notifCard(),
     h('div', { class: 'card stack' },
       h('button', { class: 'btn ghost block', onclick: () => openSheet(h('div', {}, h('div', { class: 'row' }, h('h2', { style: 'margin:0;flex:1' }, 'Altre cerchie'), h('button', { class: 'btn plain', onclick: closeSheet }, '✕')), circleForms())) }, '➕ Crea o entra in un\'altra cerchia'),
       !isStandalone() ? h('button', { class: 'btn ghost block', onclick: () => showInstall(true) }, '📲 Metti l\'app nella schermata Home') : null,
       h('p', { class: 'center credit' }, `Chiacchiere · versione ${VERSIONE}`),
-      h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) sb.auth.signOut(); } }, 'Esci')),
+      h('button', { class: 'btn plain block', onclick: async () => { if (await askConfirm('👋 Vuoi uscire?', 'Per rientrare ti serviranno il tuo nome e la password.', 'Sì, esci')) { await unsubscribePush(); sb.auth.signOut(); } } }, 'Esci')),
   );
+}
+
+/* ============ NOTIFICHE PUSH ============ */
+const PUSH_URL = `${SUPABASE_URL}/functions/v1/notifiche`;
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+function b64ToBytes(b64) {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4), raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+async function saveSub(sub) {
+  const j = sub.toJSON();
+  await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, user_id: S.me.id, p256dh: j.keys.p256dh, auth: j.keys.auth });
+}
+async function enablePush() {
+  if (!pushSupported()) return toast(isIOS() ? 'Prima metti Chiacchiere nella Home, poi attiva le notifiche da lì 📲' : 'Questo browser non supporta le notifiche', 4000);
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return toast('Notifiche non permesse. Puoi attivarle dalle impostazioni del telefono.', 4000);
+  try {
+    const { publicKey } = await (await fetch(PUSH_URL + '?chiave=pubblica')).json();
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(publicKey) });
+    await saveSub(sub);
+    localStorage.setItem('notifiche', 'si');
+    toast('🔔 Notifiche attive!'); if (S.tab === 'profilo') render();
+  } catch (e) { toast('Non riesco ad attivarle: ' + errMsg(e), 4000); }
+}
+async function syncPush() {
+  // se sono già permesse, ricollega questo telefono all'utente (anche dopo un cambio di account)
+  try {
+    if (!pushSupported() || Notification.permission !== 'granted') return maybeAskPush();
+    const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if (sub) await saveSub(sub); else if (localStorage.getItem('notifiche') === 'si') enablePush();
+  } catch {}
+}
+async function unsubscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if (sub) { await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint); await sub.unsubscribe(); }
+    localStorage.removeItem('notifiche');
+  } catch {}
+}
+function maybeAskPush() {
+  // chiede una volta sola, e su iPhone solo quando l'app è già nella Home
+  if (!pushSupported() || Notification.permission !== 'default' || localStorage.getItem('chiestoNotifiche')) return;
+  if (isIOS() && !isStandalone()) return;
+  localStorage.setItem('chiestoNotifiche', '1');
+  setTimeout(() => {
+    if (document.getElementById('overlay')) return;
+    openSheet(h('div', { class: 'center' }, h('div', { style: 'font-size:52px' }, '🔔'), h('h2', {}, 'Vuoi le notifiche?'),
+      h('p', { class: 'muted' }, 'Ti avvisiamo quando qualcuno ti scrive in chat, risponde al dibattito o ti manda una richiesta di amicizia.'),
+      h('button', { class: 'btn block', onclick: () => { closeSheet(); enablePush(); } }, '🔔 Sì, attivale'),
+      h('button', { class: 'btn plain block', style: 'margin-top:6px', onclick: closeSheet }, 'Più tardi')));
+  }, 1500);
+}
+function notifCard() {
+  const on = pushSupported() && Notification.permission === 'granted' && localStorage.getItem('notifiche') === 'si';
+  const blocked = pushSupported() && Notification.permission === 'denied';
+  return h('div', { class: 'card' }, h('h2', {}, '🔔 Notifiche'),
+    on ? h('p', { class: 'muted', style: 'margin:0' }, 'Attive su questo telefono ✓')
+      : blocked ? h('p', { class: 'muted', style: 'margin:0' }, 'Bloccate: per riattivarle vai nelle impostazioni del telefono → notifiche → Chiacchiere.')
+      : isIOS() && !isStandalone() ? h('p', { class: 'muted', style: 'margin:0' }, 'Su iPhone funzionano solo con l\'app nella schermata Home: installala e poi attivale da qui.')
+      : h('div', {}, h('p', { class: 'muted' }, 'Ricevi un avviso per i messaggi in chat, le risposte al dibattito e le richieste di amicizia.'),
+          h('button', { class: 'btn block', onclick: enablePush }, '🔔 Attiva le notifiche')),
+    on ? h('button', { class: 'linkbtn small', onclick: async () => { await unsubscribePush(); toast('Notifiche disattivate'); render(); } }, 'Disattiva') : null);
 }
 
 /* ============ PRESSIONE LUNGA SUI MESSAGGI ============ */
