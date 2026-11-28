@@ -1,7 +1,8 @@
 import { PAROLE } from './parole.js';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=26';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '25';
+const VERSIONE = '26';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -80,7 +81,7 @@ if ('serviceWorker' in navigator) {
   // quando arriva una versione nuova: ricarica da solo se non stai facendo niente, altrimenti avvisa
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return;
-    const busy = document.getElementById('overlay') || document.querySelector('.topo-root') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '');
+    const busy = document.getElementById('overlay') || document.querySelector('.topo-root') || document.querySelector('.chess-root') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName || '');
     if (!busy) location.reload(); else toast('✨ Novità disponibili: riapri l\'app per vederle', 4000);
   });
 }
@@ -101,6 +102,7 @@ if ('serviceWorker' in navigator) {
 
 sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_OUT') { cleanup(); renderAuth(); } });
 
+initScacchi({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 boot();
 async function boot() {
   try {
@@ -233,6 +235,9 @@ async function afterLogin() {
   if (['chat', 'amici', 'oggi'].includes(apri)) {
     localStorage.removeItem('apri'); S.tab = apri; if (apri === 'chat') S.unread = 0; render(); return;
   }
+  if ((apri || '').startsWith('scacchi:')) {
+    localStorage.removeItem('apri'); S.tab = 'chat'; render(); openChessGame(apri.slice(8)); return;
+  }
   if (localStorage.getItem('apri') === 'santa') {
     localStorage.removeItem('apri'); S.tab = 'giochi'; S.extraView = 'utilita'; render(); openSanta();
   } else maybeShowInstall();
@@ -331,6 +336,8 @@ function subscribe() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, refreshFeedSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'polls', filter: `circle_id=eq.${cid}` }, refreshPollsSoon)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'poll_votes' }, refreshPollsSoon)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `circle_id=eq.${cid}` }, (p) => refreshChess(p.new.id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_cheers' }, (p) => refreshChess(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, onSocialChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'circle_invites', filter: `invitee=eq.${S.me.id}` }, onSocialChange)
     .subscribe();
@@ -724,7 +731,7 @@ function appendMsg(m, scroll) {
   if (list.querySelector(`[data-id="${m.id}"]`)) return;
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
-  const bubble = m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
+  const bubble = m.game_id ? chessChatCard(m.game_id) : m.audio_path ? audioBubble(m) : h('div', { class: 'bubble' }, m.body);
   const row = h('div', { class: 'msg' + (me ? ' me' : ''), 'data-id': m.id },
     me ? null : avatarEl(w, 'sm'),
     h('div', {}, me ? null : h('div', { class: 'who' }, w.username), bubble, h('div', { class: 'time' }, timeOf(m.created_at))));
@@ -777,6 +784,14 @@ async function tabGiochi(root) {
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, g.unit(s.score)));
       })) : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato oggi.')));
   }
+  // ♟️ Scacchi: sfide nella cerchia
+  const turni = await myTurns().catch(() => 0);
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openChessLobby },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#f3e3c3,#c9a26b)' }, '♟️'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Scacchi'),
+        h('div', { class: 'muted small' }, 'Sfida qualcuno della cerchia, anche a squadre. Gli altri fanno il tifo!'), credit()),
+      h('span', { class: 'btn small' }, turni ? `👉 ${turni}` : 'Gioca'))));
   // 🐭 Topolini Golosi: classifica per livello raggiunto
   const { data: prog } = await sb.from('game_progress').select('user_id,level').eq('game', 'topolini').in('user_id', ids).order('level', { ascending: false });
   const myLv = (prog || []).find((p) => p.user_id === S.me.id)?.level || 1;
@@ -1214,7 +1229,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=25');
+  const { startTopolini } = await import('./topolini.js?v=26');
   startTopolini({
     level,
     onWin: async (next) => {
