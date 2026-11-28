@@ -1,12 +1,13 @@
 import { PAROLE } from './parole.js';
-import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=38';
-import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=38';
-import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=38';
-import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=38';
-import { initSudoku, openSudokuMenu, openSudokuDaily, sudokuChatCard, refreshSudoku } from './sudoku.js?v=38';
+import { initScacchi, chessChatCard, refreshChess, openChessGame, openChessLobby, myTurns } from './scacchi.js?v=39';
+import { initBalilla, openTornei, openTorneo, torneoChatCard, refreshTorneo } from './balilla.js?v=39';
+import { initBiliardo, openPoolLobby, openPoolGame, poolChatCard, refreshPool, poolTurns } from './biliardo.js?v=39';
+import { initPuzzle, openPuzzleMenu, openPuzzleDaily, puzzleChatCard, refreshPuzzle } from './puzzle.js?v=39';
+import { initSudoku, openSudokuMenu, openSudokuDaily, sudokuChatCard, refreshSudoku } from './sudoku.js?v=39';
+import { initPaese, openPaeseLobby, openPaese, paeseChatCard, refreshPaese } from './paese.js?v=39';
 
 /* ============ CONFIG ============ */
-const VERSIONE = '38';
+const VERSIONE = '39';
 const SUPABASE_URL = 'https://nznwxjxeralilqzohazd.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_daqp16bCptd0phA4K3guiQ_iuq2AzuV';
 const EMAIL_DOMAIN = 'utenti.chiacchiere.app'; // indirizzi interni: nessuna email viene mai inviata
@@ -111,6 +112,7 @@ initScacchi({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, 
 initBalilla({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initBiliardo({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initPuzzle({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm, todayRome, saveScore });
+initPaese({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm });
 initSudoku({ sb, S, h, person, avatarEl, toast, errMsg, openSheet, closeSheet, askConfirm, todayRome, saveScore });
 boot();
 async function boot() {
@@ -278,6 +280,9 @@ async function afterLogin() {
   if ((apri || '').startsWith('biliardo:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openPoolGame({ mode: 'online', id: apri.slice(9) }); return;
   }
+  if ((apri || '').startsWith('paese:')) {
+    localStorage.removeItem('apri'); S.tab = 'chat'; render(); openPaese(apri.slice(6)); return;
+  }
   if ((apri || '').startsWith('torneo:')) {
     localStorage.removeItem('apri'); S.tab = 'chat'; render(); openTorneo(apri.slice(7)); return;
   }
@@ -429,6 +434,8 @@ function subscribe() {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chess_games', filter: `circle_id=eq.${cid}` }, (p) => refreshChess(p.new.id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'chess_cheers' }, (p) => refreshChess(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pool_games', filter: `circle_id=eq.${cid}` }, (p) => refreshPool(p.new.id))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'lupus_games', filter: `circle_id=eq.${cid}` }, (p) => refreshPaese(p.new.id))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'lupus_actions' }, (p) => refreshPaese(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'puzzle_results' }, (p) => { refreshPuzzle(p.new.msg_id); refreshSudoku(p.new.msg_id); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'pool_cheers' }, (p) => refreshPool(p.new?.game_id || p.old?.game_id))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foos_tournaments', filter: `circle_id=eq.${cid}` }, (p) => refreshTorneo(p.new?.id || p.old?.id))
@@ -872,7 +879,7 @@ function appendMsg(m, scroll) {
   document.getElementById('chat-empty')?.remove();
   const me = m.user_id === S.me.id, w = person(m.user_id);
   const imgUrl = m.image_path ? sb.storage.from('foto').getPublicUrl(m.image_path).data.publicUrl : null;
-  const bubble = m.file_path ? fileBubble(m) : m.sudoku ? sudokuChatCard(m) : m.puzzle ? puzzleChatCard(m) : m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
+  const bubble = m.lupus_id ? paeseChatCard(m.lupus_id) : m.file_path ? fileBubble(m) : m.sudoku ? sudokuChatCard(m) : m.puzzle ? puzzleChatCard(m) : m.game_id ? chessChatCard(m.game_id) : m.pool_id ? poolChatCard(m.pool_id) : m.foos_id ? torneoChatCard(m.foos_id) : m.audio_path ? audioBubble(m)
     : imgUrl ? h('div', { class: 'bubble photo' }, h('img', { src: imgUrl, loading: 'lazy', alt: 'foto', onclick: () => openPhoto(imgUrl),
         onload: () => { if (scroll) window.scrollTo({ top: document.body.scrollHeight }); } }), m.body ? h('div', { class: 'cap' }, m.body) : null)
     : h('div', { class: 'bubble' }, m.body);
@@ -933,6 +940,13 @@ async function tabGiochi(root) {
           h('div', { style: 'flex:1;font-weight:700' }, w.username), h('div', { class: 'muted' }, g.unit(s.score)));
       })) : h('p', { class: 'muted small', style: 'margin:10px 0 0' }, 'Nessuno ha ancora giocato oggi.')));
   }
+  // 🌙 Notte in paese
+  root.append(h('div', { class: 'card topo-list' },
+    h('div', { class: 'game-card', onclick: openPaeseLobby },
+      h('div', { class: 'gico', style: 'background:linear-gradient(135deg,#3a3f6b,#151833)' }, '🌙'),
+      h('div', { style: 'flex:1' }, h('h3', { style: 'margin:0' }, 'Notte in paese'),
+        h('div', { class: 'muted small' }, 'Ruoli segreti: assassini, sceriffo, prostituta, medico. Di notte si agisce, di giorno si vota. Dai 4 giocatori in su.'), credit()),
+      h('span', { class: 'btn small' }, 'Gioca'))));
   // 🔢 Sudoku
   root.append(h('div', { class: 'card topo-list' },
     h('div', { class: 'game-card', onclick: openSudokuMenu },
@@ -1406,7 +1420,7 @@ async function openTopolini() {
   const key = `topolini-${S.me.id}`;
   const { data } = await sb.from('game_progress').select('level').eq('user_id', S.me.id).eq('game', 'topolini').maybeSingle();
   const level = Math.max(+localStorage.getItem(key) || 1, data?.level || 1);
-  const { startTopolini } = await import('./topolini.js?v=38');
+  const { startTopolini } = await import('./topolini.js?v=39');
   startTopolini({
     level,
     onWin: async (next) => {
